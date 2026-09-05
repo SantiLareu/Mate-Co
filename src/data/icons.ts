@@ -1,0 +1,35 @@
+// Original, generic demo drawings. All paths share a 32 × 32 viewBox.
+export const categories = ['Romántico', 'Música', 'Deportes', 'Naturaleza', 'Argentina', 'Animales', 'Símbolos'] as const;
+export type IconDefinition = { id: string; name: string; category: typeof categories[number]; paths: string[] };
+export const icons: IconDefinition[] = [
+  { id: 'heart', name: 'Corazón', category: 'Romántico', paths: ['M16 27 5 16C-3 5 10 0 16 9 22 0 35 5 27 16Z'] },
+  { id: 'infinity', name: 'Infinito', category: 'Romántico', paths: ['M16 16C6-1-7 24 7 24 17 24 18 8 25 8 39 8 26 33 16 16Z'] },
+  { id: 'spark', name: 'Destello', category: 'Romántico', paths: ['M16 2 20 12 30 16 20 20 16 30 12 20 2 16 12 12Z'] },
+  { id: 'rings', name: 'Anillos', category: 'Romántico', paths: ['M19 19a8 8 0 1 1-16 0 8 8 0 1 1 16 0M29 19a8 8 0 1 1-16 0 8 8 0 1 1 16 0M8 8l3-4 3 4M18 8l3-4 3 4'] },
+  { id: 'note', name: 'Nota musical', category: 'Música', paths: ['M12 24V6l16-3v18M12 10l16-3M12 24a5 3 0 1 1-10 0 5 3 0 1 1 10 0M28 21a5 3 0 1 1-10 0 5 3 0 1 1 10 0'] },
+  { id: 'guitar', name: 'Guitarra', category: 'Música', paths: ['M18 14 26 3l3 2-9 12C26 27 11 33 5 25-1 17 9 10 14 14ZM12 20a2 2 0 1 0 4 0 2 2 0 1 0-4 0M8 24l4 3'] },
+  { id: 'headphones', name: 'Auriculares', category: 'Música', paths: ['M4 19V14a12 12 0 0 1 24 0v5M4 17h5v12H4ZM23 17h5v12h-5Z'] },
+  { id: 'microphone', name: 'Micrófono', category: 'Música', paths: ['M11 7a5 5 0 0 1 10 0v10a5 5 0 0 1-10 0ZM7 15v2a9 9 0 0 0 18 0v-2M16 26v4M10 30h12'] },
+  { id: 'ball', name: 'Pelota', category: 'Deportes', paths: ['M30 16a14 14 0 1 1-28 0 14 14 0 1 1 28 0M16 10l6 4-2 7h-8l-2-7ZM16 10V2M22 14l7-3M20 21l5 6M12 21l-5 6M10 14l-7-3'] },
+  { id: 'racket', name: 'Raqueta', category: 'Deportes', paths: ['M25 5c10 10-4 24-14 14S15-5 25 5ZM11 19 2 28l2 2 9-9M13 7l12 12M10 11l11 11M23 5 9 19M27 9 13 23'] },
+  { id: 'trophy', name: 'Trofeo', category: 'Deportes', paths: ['M9 3h14v10a7 7 0 0 1-14 0ZM9 6H3v5a6 6 0 0 0 6 6M23 6h6v5a6 6 0 0 1-6 6M16 20v8M9 29h14'] },
+  { id: 'shirt', name: 'Camiseta', category: 'Deportes', paths: ['M10 3 2 8l4 8 4-2v15h12V14l4 2 4-8-8-5c-2 5-10 5-12 0Z'] },
+  { id: 'leaf', name: 'Hoja', category: 'Naturaleza', paths: ['M5 26C-3 9 15 3 29 3c0 14-5 32-24 23ZM3 29 24 8M10 22v-8M15 17h8'] },
+  { id: 'mountain', name: 'Montaña', category: 'Naturaleza', paths: ['M2 28 13 5l9 16 4-8 5 15ZM8 15l5 3 4-5'] },
+  { id: 'sun', name: 'Sol', category: 'Naturaleza', paths: ['M23 16a7 7 0 1 1-14 0 7 7 0 1 1 14 0M16 1v4M16 27v4M1 16h4M27 16h4M5 5l3 3M24 24l3 3M5 27l3-3M24 8l3-3'] },
+  { id: 'wave', name: 'Ola', category: 'Naturaleza', paths: ['M2 25c8 0 4-18 17-19 8 0 12 7 9 13-2-8-9-5-8 1 1 4 5 5 10 5M2 29h28'] },
+  { id: 'arg-sun', name: 'Sol argentino', category: 'Argentina', paths: ['M23 16a7 7 0 1 1-14 0 7 7 0 1 1 14 0M16 1v5M16 26v5M1 16h5M26 16h5M5 5l4 4M23 23l4 4M5 27l4-4M23 9l4-4M12 14h1M19 14h1M13 19q3 3 6 0'] },
+  { id: 'arg-map', name: 'Argentina mapa', category: 'Argentina', paths: ['M14 2 22 3 24 7 21 11 22 15 18 19 17 24 13 30 10 27 11 23 9 20 11 16 10 12 12 8Z'] },
+  { id: 'rosette', name: 'Escarapela', category: 'Argentina', paths: ['M26 12a10 10 0 1 1-20 0 10 10 0 1 1 20 0M21 12a5 5 0 1 1-10 0 5 5 0 1 1 10 0M9 20 6 30l7-3 3 3 3-3 7 3-3-10'] },
+  { id: 'mate', name: 'Mate', category: 'Argentina', paths: ['M8 13h16l3 10c1 9-23 9-22 0ZM24 13c0 4-16 4-16 0s16-4 16 0ZM18 12 23 2h5'] },
+  { id: 'paw', name: 'Huella', category: 'Animales', paths: ['M8 25c0-5 4-11 8-11s8 6 8 11c0 7-6 3-8 3s-8 4-8-3ZM7 12a3 4 0 1 1-6 0 3 4 0 1 1 6 0M14 6a3 4 0 1 1-6 0 3 4 0 1 1 6 0M24 6a3 4 0 1 1-6 0 3 4 0 1 1 6 0M31 12a3 4 0 1 1-6 0 3 4 0 1 1 6 0'] },
+  { id: 'dog', name: 'Perro', category: 'Animales', paths: ['M8 9c0-8 16-8 16 0v14c0 9-16 9-16 0ZM8 7C-2 3 0 24 7 18M24 7c10-4 8 17 1 11M11 14h1M20 14h1M13 20h6l-3 3ZM16 23v3'] },
+  { id: 'cat', name: 'Gato', category: 'Animales', paths: ['M5 15V3l8 7h6l8-7v12c8 18-30 18-22 0ZM10 17h2M20 17h2M14 22h4l-2 2ZM1 20l8 2M1 26l8-1M23 22l8-2M23 25l8 1'] },
+  { id: 'horse', name: 'Caballo', category: 'Animales', paths: ['M7 29c0-10 8-12 8-17l-5 4-7-3L15 4l2-3 3 5c12 4 10 14 9 23ZM18 10h1M21 7c4 6 2 15-3 22'] },
+  { id: 'bolt', name: 'Rayo', category: 'Símbolos', paths: ['M19 1 5 18h10l-2 13 14-18H17Z'] },
+  { id: 'crown', name: 'Corona', category: 'Símbolos', paths: ['M5 24 2 7l8 6 6-10 6 10 8-6-3 17ZM5 29h22'] },
+  { id: 'cross', name: 'Cruz', category: 'Símbolos', paths: ['M12 2h8v9h9v8h-9v11h-8V19H3v-8h9Z'] },
+  { id: 'arrow', name: 'Flecha', category: 'Símbolos', paths: ['M2 16h27M19 6l10 10-10 10'] },
+  { id: 'star', name: 'Estrella', category: 'Símbolos', paths: ['M16 2 20 11 30 12 22 19 25 30 16 24 7 30 10 19 2 12 12 11Z'] },
+];
+export const iconById = Object.fromEntries(icons.map(icon => [icon.id, icon]));
