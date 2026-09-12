@@ -66,8 +66,8 @@ export default function App() {
           ? <TemplatesPanel selected={selected} onSelect={setSelected} onStart={() => enterDesign(true)} onContinue={() => enterDesign()} />
           : <DesignPanel selected={texts.find(text => text.id === selectedText) ?? null}
               onAdd={() => { const text = createText(); setTexts(current => [...current, text]); selectText(text.id); }}
-              selectedIcon={icons.find(icon => icon.id === selectedIcon) ?? null} onAddIcon={() => setDrawerOpen(true)} onUpdateIcon={updateIcon} onDeleteIcon={deleteIcon}
-              onUpdate={updateText} onDelete={deleteText} onDeselect={() => selectText(null)} />}
+              selectedIcon={icons.find(icon => icon.id === selectedIcon) ?? null} onAddIcon={() => setDrawerOpen(true)} onUpdateIcon={updateIcon}
+              onUpdate={updateText} />}
         <div className="user-card">
           <span className="avatar" aria-hidden="true">SL</span>
           <span className="user-name">Santiago Lareu</span>

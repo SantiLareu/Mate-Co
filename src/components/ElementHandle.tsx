@@ -21,7 +21,7 @@ export function useSvgPixelSize(ref: { current: SVGGElement | null }) {
 
 type Props = {
   x: number; y: number; unit: number; counterRotation?: number;
-  kind: 'delete' | 'transform'; label: string;
+  kind: 'delete' | 'transform' | 'scale' | 'rotate'; label: string;
   onActivate?: () => void;
   onStart?: (event: PointerEvent<SVGGElement>) => void;
   onMove?: (event: PointerEvent<SVGGElement>) => void;
@@ -49,6 +49,11 @@ export default function ElementHandle({ x, y, unit, counterRotation = 0, kind, l
     <title>{label}</title>
     <circle className="handle-target" r="22" fill="transparent" />
     <circle className="handle-face" r="12" fill="#fffdf8" stroke="#8b906e" strokeWidth="1.2" />
-    <path d={kind === 'delete' ? 'M-4-4 4 4M4-4-4 4' : 'M-5 1v4h4M5-1v-4H1M-5 5 5-5'} fill="none" stroke="#60683e" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
+    <path d={kind === 'delete'
+      ? 'M-4-4 4 4M4-4-4 4'
+      : kind === 'rotate'
+        ? 'M-5 1A6 6 0 1 1 0 6M-5 1V6H0'
+        : 'M-5 1v4h4M5-1v-4H1M-5 5 5-5'}
+      fill="none" stroke="#60683e" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none" />
   </g>;
 }

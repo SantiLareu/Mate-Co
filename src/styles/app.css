@@ -64,13 +64,10 @@ h1 { margin: 0 0 calc(4 * var(--unit)); font-size: calc(25 * var(--unit)); line-
   .sidebar:has(.design-panel) > * { flex-shrink: 0; }
 }
 .text-editor input:focus-visible, .text-editor select:focus-visible { outline: 2px solid #92996e; outline-offset: 2px; }
-.design-action, .finish-text { min-height: calc(55 * var(--unit)); padding: calc(12 * var(--unit)) calc(18 * var(--unit)); border: 1px solid #d5d7cb; border-radius: calc(18 * var(--unit)); background: #f7f7f1; color: var(--olive); font-size: calc(21 * var(--unit)); font-weight: 600; }
+.design-action { min-height: calc(55 * var(--unit)); padding: calc(12 * var(--unit)) calc(18 * var(--unit)); border: 1px solid #d5d7cb; border-radius: calc(18 * var(--unit)); background: #f7f7f1; color: var(--olive); font-size: calc(21 * var(--unit)); font-weight: 600; }
 .design-action:hover, .design-action[aria-pressed="true"] { background: #e9ebdf; border-color: #858b66; }
-.delete-text { color: #8a5845; background: #fffaf6; border-color: #e2d4cb; }
-.delete-text:hover { background: #f5eae3; border-color: #b6917e; }
-.finish-text { background: #6a6e59; color: #fff; border-color: #6a6e59; }
-.finish-text:hover { background: #596041; }
-.curved-text.editable { cursor: grab; touch-action: none; user-select: none; }
+.curved-text.editable, .curved-text.editable * { touch-action: none; }
+.curved-text.editable { cursor: grab; user-select: none; }
 .curved-text.editable:active { cursor: grabbing; }
 .curved-text.editable:focus-visible { outline: none; }
 .curved-text.editable:focus-visible .text-hit-area { stroke: #8b906e26; }
@@ -101,7 +98,8 @@ h1 { margin: 0 0 calc(4 * var(--unit)); font-size: calc(25 * var(--unit)); line-
 }
 @media (prefers-reduced-motion: reduce) { button { transition: none; } }
 .add-elements { display: grid; gap: calc(24 * var(--unit)); }
-.design-icon.editable { cursor: grab; touch-action: none; user-select: none; }
+.design-icon.editable, .design-icon.editable * { touch-action: none; }
+.design-icon.editable { cursor: grab; user-select: none; }
 .design-icon.editable:active { cursor: grabbing; }
 .design-icon.editable:focus-visible { outline: 2px solid #8b906e; outline-offset: 4px; }
 .icon-drawer { position: fixed; inset: 0 0 0 auto; margin: 0; width: min(440px, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; border: 0; border-left: 1px solid #dddcd2; padding: 28px; background: #fdfcf8; color: #242d3b; box-shadow: -12px 0 40px #242d3b18; overflow-y: auto; }
@@ -126,10 +124,12 @@ h1 { margin: 0 0 calc(4 * var(--unit)); font-size: calc(25 * var(--unit)); line-
 @keyframes drawer-enter { from { transform: translateX(100%); } to { transform: translateX(0); } }
 @media (max-width: 480px) { .icon-drawer { padding: 20px; } }
 @media (prefers-reduced-motion: reduce) { .icon-drawer[open] { animation: none; } }
-.element-handle { touch-action: none; cursor: pointer; }
-.element-handle.transform-handle { cursor: nwse-resize; }
+.element-handle, .element-handle * { touch-action: none; }
+.element-handle { cursor: pointer; }
+.element-handle.transform-handle, .element-handle.scale-handle { cursor: nwse-resize; }
+.element-handle.rotate-handle { cursor: grab; }
+.element-handle.rotate-handle:active { cursor: grabbing; }
 .element-handle:focus-visible { outline: none; }
 .element-handle:hover .handle-face, .element-handle:focus-visible .handle-face { fill: #eff1e5; stroke: #60683e; stroke-width: 2; }
 .curved-text.editable:focus, .design-icon.editable:focus, .element-handle:focus { outline: none; }
 .design-icon.editable:focus-visible > circle:first-of-type { stroke: #8b906e; stroke-width: 1.5; }
-.mate[role="group"] { touch-action: none; }

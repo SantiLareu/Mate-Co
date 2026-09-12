@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import ElementHandle, { useSvgPixelSize } from './ElementHandle';
-import { matePointer, polarPoint, useDirectDrag } from './directManipulation';
+import { matePointer, polarPoint, useDirectDrag, usePreventManipulationScroll } from './directManipulation';
 
 // Radius describes the text's design midline, not its baseline. The bounds
 // reserve space for 35px glyphs, descenders and the existing inverted offset.
@@ -27,6 +27,7 @@ const point = (angle: number, radius: number) => {
 export default function CurvedText({ element, editing, selected, onSelect, onUpdate, onDelete }: Props) {
   const textRef = useRef<SVGTextElement>(null);
   const groupRef = useRef<SVGGElement>(null);
+  usePreventManipulationScroll(groupRef, editing);
   const unit = useSvgPixelSize(groupRef);
   const resize = useRef<{ x: number; y: number; distance: number; scale: number } | null>(null);
   const scale = clampTextScale(element.scale ?? 1);
@@ -59,17 +60,14 @@ export default function CurvedText({ element, editing, selected, onSelect, onUpd
         if (event.key === 'Delete') { event.preventDefault(); onDelete(element.id); }
       }}
       {...(editing ? directDrag : {})}
-      onPointerDown={event => { if (editing && event.button === 0) { onSelect(element.id); directDrag.onPointerDown(event); } }}>
+      onPointerDown={event => { if (editing && event.button === 0) { directDrag.onPointerDown(event); onSelect(element.id); } }}>
       <defs>
         <path id={pathId} d={`M450 ${450 + pathRadius} A${pathRadius} ${pathRadius} 0 0 ${sweep} 450 ${450 - pathRadius} A${pathRadius} ${pathRadius} 0 0 ${sweep} 450 ${450 + pathRadius}`} />
       </defs>
       {editing && <path d={hitArc} fill="none" stroke="transparent" strokeWidth="52" className="text-hit-area" />}
-      {editing && selected && <g className="text-selection" pointerEvents="none">
-        <path d={hitArc} fill="none" stroke="#8b906e" strokeWidth="1.2" strokeDasharray="3 5" />
-        <circle cx={start[0]} cy={start[1]} r="4" fill="#fff" stroke="#757c52" strokeWidth="1.5" />
-        <circle cx={end[0]} cy={end[1]} r="4" fill="#fff" stroke="#757c52" strokeWidth="1.5" />
-      </g>}
-      <text key={element.fontFamily} ref={textRef} fill="#65513c" fontFamily={element.fontFamily} fontSize={35 * scale} fontWeight="600" letterSpacing={2 * scale} textAnchor="middle" dy={element.inverted ? 26 * scale : 0}>
+      <text key={element.fontFamily} ref={textRef} fill="#65513c" stroke={editing && selected ? '#8b906e' : 'none'}
+        strokeWidth={editing && selected ? .75 * unit : 0} paintOrder="stroke" fontFamily={element.fontFamily}
+        fontSize={35 * scale} fontWeight="600" letterSpacing={2 * scale} textAnchor="middle" dy={element.inverted ? 26 * scale : 0}>
         <textPath href={`#${pathId}`} startOffset="50%">{element.text}</textPath>
       </text>
       {editing && selected && <>
