@@ -3,26 +3,20 @@ import { iconById } from '../data/icons';
 import ElementHandle, { useSvgPixelSize } from './ElementHandle';
 import { matePointer, useDirectDrag, usePreventManipulationScroll } from './directManipulation';
 
-export type DesignIcon = { id: string; type: 'icon'; iconId: string; angle: number; radius: number; scale: number; rotation: number; mirrored: boolean };
+export type DesignIcon = { id: string; type: 'icon'; iconId: string; angle: number; radius: number; scale: number; rotation: number; mirrored: boolean; inverted: boolean };
 export const ICON_CENTER = 357.5;
-export const iconRadiusBounds = (scale: number) => {
-  // A circumscribed circle includes every corner and stroke at any rotation.
-  const extent = 25 * scale * Math.SQRT2;
-  return { min: 300 + extent, max: 415 - extent };
-};
-export const clampIconScaleAtRadius = (scale: number, radius: number) => {
-  if (!Number.isFinite(scale)) return 1;
-  const available = Math.min(radius - 300, 415 - radius);
-  const maximum = Math.max(.6, Math.min(1.4, available / (25 * Math.SQRT2)));
-  return Math.max(.6, Math.min(maximum, scale));
-};
+export const ICON_RADIUS = { min: 305, max: 410 } as const;
+export const ICON_SCALE = { min: .25, max: 3 } as const;
+export const iconRadiusBounds = (_scale = 1) => ICON_RADIUS;
+export const clampIconScaleAtRadius = (scale: number, _radius = ICON_CENTER) => Number.isFinite(scale)
+  ? Math.max(ICON_SCALE.min, Math.min(ICON_SCALE.max, scale)) : 1;
 export const normalizeIcon = (icon: DesignIcon): DesignIcon => {
-  const scale = Math.max(.6, Math.min(1.4, icon.scale));
-  const bounds = iconRadiusBounds(scale);
+  const scale = clampIconScaleAtRadius(icon.scale);
+  const bounds = iconRadiusBounds();
   return { ...icon, scale, radius: Math.max(bounds.min, Math.min(bounds.max, icon.radius)) };
 };
 export const templateIcons = (count: 1 | 2 | 3): DesignIcon[] => (count === 1 ? [180] : count === 2 ? [270, 90] : [270, 90, 180])
-  .map((angle, index) => ({ id: `template-icon-${index}`, type: 'icon', iconId: 'spark', angle, radius: 360, scale: 1, rotation: 0, mirrored: false }));
+  .map((angle, index) => ({ id: `template-icon-${index}`, type: 'icon', iconId: 'spark', angle, radius: 360, scale: 1, rotation: 0, mirrored: false, inverted: false }));
 
 type Props = { element: DesignIcon; editing: boolean; selected: boolean; onSelect: (id: string) => void; onUpdate: (id: string, changes: Partial<DesignIcon>) => void; onDelete: (id: string) => void };
 export default function IconElement({ element, editing, selected, onSelect, onUpdate, onDelete }: Props) {
@@ -43,8 +37,9 @@ export default function IconElement({ element, editing, selected, onSelect, onUp
   const deletePosition = controlPoint(315);
   const scalePosition = controlPoint(135);
   const definition = iconById[element.iconId];
-  return <g ref={groupRef} className={`design-icon${editing ? ' editable' : ''}`} transform={`translate(${x} ${y})`}
-    data-icon-id={element.id} data-angle={element.angle} data-radius={element.radius}
+  const icon = <g ref={groupRef} className={`design-icon${editing ? ' editable' : ''}`} transform={`translate(${x} ${y})`}
+    data-icon-id={element.id} data-angle={element.angle} data-radius={element.radius} data-scale={element.scale}
+    data-rotation={element.rotation} data-mirrored={element.mirrored} data-inverted={element.inverted}
     role={editing ? 'button' : undefined} tabIndex={editing ? 0 : undefined} aria-label={`Editar ícono: ${definition.name}`} aria-pressed={editing ? selected : undefined}
     onClick={event => { if (editing) { event.stopPropagation(); onSelect(element.id); } }}
     onKeyDown={event => {
@@ -55,14 +50,17 @@ export default function IconElement({ element, editing, selected, onSelect, onUp
     }}
     {...(editing ? directDrag : {})}
     onPointerDown={event => { if (editing && event.button === 0) { directDrag.onPointerDown(event); onSelect(element.id); } }}>
+    <defs>
+      <circle id={`icon-knockout-${element.id}`} r={25 * element.scale * Math.SQRT2 + 4} fill="#000" />
+    </defs>
     <circle r={Math.max(26, 25 * element.scale * Math.SQRT2)} fill="transparent" />
     {editing && selected && <circle r={25 * element.scale * Math.SQRT2 + 3} fill="none" stroke="#8b906e" strokeWidth="1.2" strokeDasharray="3 5" pointerEvents="none" />}
-    <g className="icon-art" transform={`rotate(${element.rotation}) scale(${element.scale * (element.mirrored ? -1 : 1)} ${element.scale})`} pointerEvents="none">
+    <g className="icon-art" transform={`rotate(${element.rotation}) scale(${element.scale * (element.mirrored ? -1 : 1)} ${element.scale * (element.inverted ? -1 : 1)})`} pointerEvents="none">
       <g transform="scale(1.4) translate(-16 -16)" fill="none" stroke="#171717" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
         {definition.paths.map((path, index) => <path key={index} d={path} />)}
       </g>
     </g>
-    {editing && selected && <>
+    {editing && selected && <g id={`icon-controls-${element.id}`}>
       <ElementHandle x={deletePosition.x} y={deletePosition.y} unit={unit} kind="delete" label="Eliminar ícono sobre la virola" onActivate={() => onDelete(element.id)} />
       <ElementHandle x={scalePosition.x} y={scalePosition.y} unit={unit} kind="scale" label="Cambiar tamaño del ícono" onStart={event => {
         const p = matePointer(event); if (!p) return;
@@ -87,6 +85,7 @@ export default function IconElement({ element, editing, selected, onSelect, onUp
       }} onEnd={() => { rotate.current = null; }} onKey={event => {
         if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); onUpdate(element.id, { rotation: element.rotation + (event.key === 'ArrowRight' ? 5 : -5) }); }
       }} />
-    </>}
+    </g>}
   </g>;
+  return icon;
 }

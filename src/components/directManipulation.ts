@@ -23,6 +23,30 @@ export const polarPoint = (angle: number, radius: number) => {
   return { x: 450 + radius * Math.cos(radians), y: 450 + radius * Math.sin(radians) };
 };
 
+const angularDistance = (first: number, second: number) => Math.abs(((first - second + 540) % 360) - 180);
+const nearestGuide = (angle: number) => ((Math.round(angle / 45) * 45) % 360 + 360) % 360;
+
+export function snapAngleToGuides(angle: number, snappedGuide: number | null) {
+  const normalized = ((angle % 360) + 360) % 360;
+  if (snappedGuide !== null && angularDistance(normalized, snappedGuide) <= 6) {
+    return { angle: snappedGuide, snappedGuide };
+  }
+  const guide = nearestGuide(normalized);
+  return angularDistance(normalized, guide) <= 3
+    ? { angle: guide, snappedGuide: guide }
+    : { angle: normalized, snappedGuide: null };
+}
+
+export const RADIAL_GUIDE_RADIUS = 360;
+
+export function snapRadiusToGuide(radius: number, snapped: boolean, enterTolerance: number, releaseTolerance: number) {
+  const difference = Math.abs(radius - RADIAL_GUIDE_RADIUS);
+  if ((snapped && difference <= releaseTolerance) || (!snapped && difference <= enterTolerance)) {
+    return { radius: RADIAL_GUIDE_RADIUS, snapped: true };
+  }
+  return { radius, snapped: false };
+}
+
 // Preserve the point where the user grabbed the element; selecting never snaps it.
 export function useDirectDrag(angle: number, radius: number, update: (position: { angle: number; radius: number }) => void) {
   const drag = useRef<{
@@ -38,6 +62,10 @@ export function useDirectDrag(angle: number, radius: number, update: (position: 
     inverseB: number;
     inverseC: number;
     inverseD: number;
+    snappedGuide: number | null;
+    snappedRadius: boolean;
+    radialEnterTolerance: number;
+    radialReleaseTolerance: number;
     moved: boolean;
   } | null>(null);
   return {
@@ -46,6 +74,7 @@ export function useDirectDrag(angle: number, radius: number, update: (position: 
       const matrix = event.currentTarget.ownerSVGElement?.getScreenCTM();
       if (!matrix) return;
       const inverse = matrix.inverse();
+      const screenScale = Math.max(.001, Math.hypot(matrix.a, matrix.b));
       const p = new DOMPoint(event.clientX, event.clientY).matrixTransform(inverse);
       event.stopPropagation();
       drag.current = {
@@ -61,6 +90,10 @@ export function useDirectDrag(angle: number, radius: number, update: (position: 
         inverseB: inverse.b,
         inverseC: inverse.c,
         inverseD: inverse.d,
+        snappedGuide: angularDistance(angle, nearestGuide(angle)) <= 3 ? nearestGuide(angle) : null,
+        snappedRadius: Math.abs(radius - RADIAL_GUIDE_RADIUS) <= 4 / screenScale,
+        radialEnterTolerance: 4 / screenScale,
+        radialReleaseTolerance: 8 / screenScale,
         moved: false,
       };
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -80,8 +113,15 @@ export function useDirectDrag(angle: number, radius: number, update: (position: 
         y: current.pointerY + current.inverseB * deltaX + current.inverseD * deltaY,
       };
       const distance = Math.hypot(p.x - 450, p.y - 450);
-      if (distance >= 12) current.angle = ((Math.atan2(p.y - 450, p.x - 450) * 180 / Math.PI + 90 + current.angleOffset) % 360 + 360) % 360;
-      update({ angle: current.angle, radius: distance + current.radiusOffset });
+      if (distance >= 12) {
+        const rawAngle = Math.atan2(p.y - 450, p.x - 450) * 180 / Math.PI + 90 + current.angleOffset;
+        const snapped = snapAngleToGuides(rawAngle, current.snappedGuide);
+        current.angle = snapped.angle;
+        current.snappedGuide = snapped.snappedGuide;
+      }
+      const radial = snapRadiusToGuide(distance + current.radiusOffset, current.snappedRadius, current.radialEnterTolerance, current.radialReleaseTolerance);
+      current.snappedRadius = radial.snapped;
+      update({ angle: current.angle, radius: radial.radius });
     },
     onPointerUp(event: PointerEvent<SVGGElement>) {
       drag.current = null;
