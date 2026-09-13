@@ -26,9 +26,19 @@ export function scoreMask(metrics: MaskMetrics): MaskScore {
   else if (metrics.borderCoveragePercentage > 68) penalize(30, `El borde negro es excesivo (${metrics.borderCoveragePercentage.toFixed(0)}%).`);
   else if (metrics.borderCoveragePercentage > 45) penalize(14, `Una parte importante del borde quedó marcada (${metrics.borderCoveragePercentage.toFixed(0)}%).`);
 
-  if (metrics.smallComponentCount > 500) penalize(38, 'La máscara está extremadamente fragmentada.');
-  else if (metrics.smallComponentCount > 180) penalize(22, 'Hay una cantidad muy alta de ruido aislado.');
-  else if (metrics.smallComponentCount > 80) penalize(10, 'Hay bastante detalle fragmentado para revisar.');
+  // Fragmentation is judged by where the ink lives, not just by component count:
+  // structural line-art holds most ink in long contours (low tiny-ink share),
+  // while speckle noise spreads its ink across tiny components (high share).
+  const noisyInk = metrics.tinyComponentInkPercentage >= 30;
+  const sparseInk = !noisyInk && metrics.tinyComponentInkPercentage >= 15;
+  if (metrics.smallComponentCount > 500) {
+    if (noisyInk) penalize(38, 'La máscara está extremadamente fragmentada.');
+    else if (sparseInk) penalize(22, 'Hay una cantidad muy alta de ruido aislado.');
+    else penalize(10, 'Hay bastante detalle fragmentado para revisar.');
+  } else if (metrics.smallComponentCount > 180) {
+    if (noisyInk) penalize(22, 'Hay una cantidad muy alta de ruido aislado.');
+    else penalize(10, 'Hay bastante detalle fragmentado para revisar.');
+  } else if (metrics.smallComponentCount > 80) penalize(10, 'Hay bastante detalle fragmentado para revisar.');
 
   value = Math.max(0, Math.round(value));
   const summary = penalties.length

@@ -7,6 +7,7 @@ import { calculateMaskMetrics, isSuspiciouslyFull } from '../src/vectorization/m
 import { createAutoGraphicMask, createBackgroundAwareMask, createLuminanceMask, estimateBorderBackground, generateMaskCandidates, pixelLuminance } from '../src/vectorization/masks';
 import { normalizeRaster, normalizedDimensions } from '../src/vectorization/normalize';
 import { createPhotoEngravingMask } from '../src/vectorization/photoEngraving';
+import { createIllustrationStencilMask, createStylizedEdgeMask, posterizeLuminance, smoothLuminanceEdgeAware } from '../src/vectorization/illustrationStencil';
 import { recommendCandidate, scoreMask } from '../src/vectorization/scoring';
 import { areMasksVisuallySimilar, compareMasks } from '../src/vectorization/maskSimilarity';
 import type { BinaryMask, MaskCandidate, MaskStrategy, RasterImage } from '../src/vectorization/types';
@@ -190,6 +191,88 @@ test('candidate selection returns up to three viable and visually different opti
   expect(selectBestCandidates([filled, outline, bars, dot], 10)).toHaveLength(3);
 });
 
+test('selection prefers a visually different candidate over a nearly identical one with slightly higher score', () => {
+  const blockA = binaryMask(20, 20, Array.from({ length: 64 }, (_, index) => (Math.floor(index / 8) + 6) * 20 + index % 8 + 6));
+  const withScore = (strategy: MaskStrategy, mask: BinaryMask, value: number): MaskCandidate => ({
+    ...maskCandidate(strategy, mask),
+    score: { value, summary: 'sintética', penalties: [] },
+  });
+  const candidateA = withScore('photo-engraving', blockA, 92);
+  const nearDuplicate = { ...blockA, data: new Uint8Array(blockA.data) };
+  nearDuplicate.data[6 * 20 + 6] = 0;
+  const candidateB = withScore('illustration-stencil', nearDuplicate, 90);
+  const blockC = binaryMask(20, 20, Array.from({ length: 64 }, (_, index) => Math.floor(index / 8) * 20 + index % 8));
+  const candidateC = withScore('edge', blockC, 86);
+  const selected = selectBestCandidates([candidateA, candidateB, candidateC]);
+  expect(selected).toHaveLength(2);
+  expect(selected.map(option => option.candidate.strategy)).toEqual(['photo-engraving', 'edge']);
+  expect(selected.map(option => option.label)).toEqual(['Recomendada', 'Alternativa']);
+});
+
+test('structural line-art with many tiny components stays viable when its ink is structural', () => {
+  const pixels: number[] = [];
+  for (let y = 10; y <= 69; y += 1) for (let x = 10; x <= 69; x += 1) pixels.push(y * 80 + x);
+  let specks = 0;
+  for (let y = 1; y < 80 && specks < 550; y += 2) {
+    for (let x = 1; x < 80 && specks < 550; x += 2) {
+      if (x >= 9 && x <= 70 && y >= 9 && y <= 70) continue;
+      pixels.push(y * 80 + x);
+      specks += 1;
+    }
+  }
+  expect(specks).toBe(550);
+  const structural = maskCandidate('edge', binaryMask(80, 80, pixels));
+  expect(structural.metrics.smallComponentCount).toBeGreaterThan(500);
+  expect(structural.metrics.tinyComponentInkPercentage).toBeLessThan(25);
+  expect(structural.score.value).toBe(90);
+  expect(isViableCandidate(structural)).toBe(true);
+});
+
+test('pure speckle noise is still rejected while low coverage alone stays viable', () => {
+  const noisePixels: number[] = [];
+  for (let y = 0; y < 50; y += 2) for (let x = 0; x < 50; x += 2) noisePixels.push(y * 50 + x);
+  const noise = maskCandidate('edge', binaryMask(50, 50, noisePixels));
+  expect(noise.metrics.smallComponentCount).toBeGreaterThan(500);
+  expect(noise.metrics.tinyComponentInkPercentage).toBeGreaterThan(90);
+  expect(noise.score.value).toBeLessThanOrEqual(62);
+  expect(isViableCandidate(noise)).toBe(false);
+
+  const thinStroke = maskCandidate('edge', binaryMask(20, 20, Array.from({ length: 8 }, (_, index) => 10 * 20 + 6 + index)));
+  expect(thinStroke.score.value).toBe(76);
+  expect(isViableCandidate(thinStroke)).toBe(true);
+
+  expect(calculateMaskMetrics(binaryMask(20, 20, Array.from({ length: 12 }, (_, index) => 4 * 20 + 4 + index))).tinyComponentInkPercentage).toBe(0);
+  expect(calculateMaskMetrics(binaryMask(20, 20, [4 * 20 + 4])).tinyComponentInkPercentage).toBe(100);
+});
+
+test('structural line-art survives selection next to a mass-based candidate', () => {
+  const mass = maskCandidate('luminance', binaryMask(20, 20, Array.from({ length: 64 }, (_, index) => (Math.floor(index / 8) + 6) * 20 + index % 8 + 6)));
+  const outlinePixels: number[] = [];
+  for (let coordinate = 4; coordinate <= 15; coordinate += 1) {
+    outlinePixels.push(4 * 20 + coordinate, 15 * 20 + coordinate, coordinate * 20 + 4, coordinate * 20 + 15);
+  }
+  const lineArt = maskCandidate('edge', binaryMask(20, 20, [...new Set(outlinePixels)]));
+  expect(isViableCandidate(lineArt)).toBe(true);
+  const selected = selectBestCandidates([mass, lineArt]);
+  expect(selected).toHaveLength(2);
+  expect(selected.map(option => option.candidate.strategy)).toContain('edge');
+});
+
+test('client labels describe recommendation plus neutral alternatives', () => {
+  const blockA = maskCandidate('photo-engraving', binaryMask(20, 20, Array.from({ length: 64 }, (_, index) => (Math.floor(index / 8) + 12) * 20 + 12 + index % 8)));
+  const blockBPixels: number[] = [];
+  for (let y = 0; y <= 7; y += 1) for (let x = 0; x <= 7; x += 1) blockBPixels.push(y * 20 + x);
+  const blockB = maskCandidate('luminance', binaryMask(20, 20, blockBPixels));
+  const outlinePixels: number[] = [];
+  for (let coordinate = 4; coordinate <= 15; coordinate += 1) {
+    outlinePixels.push(4 * 20 + coordinate, 15 * 20 + coordinate, coordinate * 20 + 4, coordinate * 20 + 15);
+  }
+  const outline = maskCandidate('edge', binaryMask(20, 20, [...new Set(outlinePixels)]));
+  expect(selectBestCandidates([blockA]).map(option => option.label)).toEqual(['Recomendada']);
+  expect(selectBestCandidates([blockA, blockB]).map(option => option.label)).toEqual(['Recomendada', 'Alternativa']);
+  expect(selectBestCandidates([blockA, blockB, outline]).map(option => option.label)).toEqual(['Recomendada', 'Alternativa 1', 'Alternativa 2']);
+});
+
 test('Photo engraving combines binary shadow masses and important edges without filling a uniform background', () => {
   const pixels = Array.from({ length: 32 * 32 }, (_, index) => {
     const x = index % 32;
@@ -218,15 +301,80 @@ test('normalizes large rasters without changing aspect ratio or source pixels', 
   expect(source.width).toBe(4);
 });
 
-test('keeps the five original strategies and adds two strictly binary candidates', () => {
+test('keeps the five original strategies and adds three strictly binary candidates', () => {
   const image = raster(3, 3, Array.from({ length: 9 }, (_, index) => index === 4 ? [0, 0, 0, 255] : [255, 255, 255, 255]));
   const candidates = generateMaskCandidates(image);
-  expect(candidates.map(candidate => candidate.strategy).slice(0, 5)).toEqual(['alpha', 'luminance', 'luminance-inverted', 'background-aware', 'edge']);
+  expect(candidates.map(candidate => candidate.strategy)).toEqual(['alpha', 'luminance', 'luminance-inverted', 'background-aware', 'edge', 'auto-graphic', 'photo-engraving', 'illustration-stencil']);
   expect(candidates.map(candidate => candidate.strategy)).toContain('auto-graphic');
   expect(candidates.map(candidate => candidate.strategy)).toContain('photo-engraving');
+  expect(candidates.map(candidate => candidate.strategy)).toContain('illustration-stencil');
+  expect(candidates.find(candidate => candidate.strategy === 'illustration-stencil')?.label).toBe('Illustration / Stencil');
+  expect(candidates.map(candidate => candidate.label)).toEqual(['Alpha', 'Luminancia', 'Luminancia invertida', 'Background-aware', 'Edge / line-art', 'Auto Graphic', 'Photo engraving', 'Illustration / Stencil']);
   for (const candidate of candidates) {
     expect(Array.from(candidate.mask.data).every(value => value === 0 || value === 1)).toBe(true);
   }
+});
+
+test('Illustration / Stencil produces a strictly binary mask and keeps a strong synthetic silhouette', () => {
+  const image = graphic([255, 255, 255, 255], [0, 0, 0, 255]);
+  const result = createIllustrationStencilMask(image);
+  expect(Array.from(result.mask.data).every(value => value === 0 || value === 1)).toBe(true);
+  expect(result.mask.data[4 * 9 + 4]).toBe(1);
+  expect(result.mask.data[0]).toBe(0);
+});
+
+test('Illustration / Stencil does not return an all-black mask on a uniform light background', () => {
+  const image = raster(9, 9, Array.from({ length: 81 }, () => [250, 250, 248, 255]));
+  const result = createIllustrationStencilMask(image);
+  const black = result.mask.data.reduce((sum, value) => sum + value, 0);
+  expect(black).toBe(0);
+});
+
+test('edge-aware smoothing preserves uniform areas and softens low-amplitude texture', () => {
+  const uniform = new Uint8Array(16).fill(150);
+  expect(Array.from(smoothLuminanceEdgeAware(uniform, 4, 4))).toEqual(Array.from(uniform));
+  const noisy = new Uint8Array(9).fill(120);
+  noisy[4] = 100;
+  const smoothed = smoothLuminanceEdgeAware(noisy, 3, 3);
+  expect(smoothed[4]).toBeGreaterThan(100);
+  expect(smoothed[4]).toBeLessThan(120);
+});
+
+test('posterization effectively reduces tonal levels', () => {
+  const gradient = Uint8Array.from({ length: 256 }, (_, value) => value);
+  const posterized = posterizeLuminance(gradient, 5);
+  expect(new Set(posterized).size).toBeLessThanOrEqual(5);
+  for (const value of posterized) {
+    expect([0, 64, 128, 191, 255]).toContain(value);
+  }
+});
+
+test('stylized edge extraction stays quiet on a uniform background', () => {
+  const uniform = new Uint8Array(16 * 16).fill(128);
+  const edges = createStylizedEdgeMask(uniform, 16, 16);
+  const black = edges.data.reduce((sum, value) => sum + value, 0);
+  expect(black).toBe(0);
+});
+
+test('Illustration / Stencil participates in scoring, deduplication and client selection', () => {
+  const image = graphic([255, 255, 255, 255], [0, 0, 0, 255]);
+  const candidates = generateMaskCandidates(image);
+  const stencil = candidates.find(candidate => candidate.strategy === 'illustration-stencil');
+  if (!stencil) throw new Error('Illustration / Stencil candidate missing from generateMaskCandidates');
+  expect(stencil.label).toBe('Illustration / Stencil');
+  expect(stencil.score.value).toBeGreaterThanOrEqual(0);
+  expect(typeof stencil.score.summary).toBe('string');
+
+  const duplicates = [
+    maskCandidate('illustration-stencil', stencil.mask),
+    maskCandidate('illustration-stencil', { ...stencil.mask, data: new Uint8Array(stencil.mask.data) }),
+  ];
+  expect(groupSimilarCandidates(duplicates)).toHaveLength(1);
+
+  const selected = selectBestCandidates([maskCandidate('illustration-stencil', stencil.mask)]);
+  expect(selected).toHaveLength(1);
+  expect(selected[0].candidate.strategy).toBe('illustration-stencil');
+  expect(selected[0].label).toBe('Recomendada');
 });
 
 test('vector lab is isolated at /vector-lab and processes a local PNG', async ({ page }) => {
@@ -278,10 +426,16 @@ test('vector lab is isolated at /vector-lab and processes a local PNG', async ({
   await expect(vectorSection.getByRole('img', { name: 'Preview del resultado vectorial' })).toHaveCount(0);
   await expect(page.getByText('Auto Graphic', { exact: true })).toBeVisible();
   await expect(page.getByText('Photo engraving', { exact: true })).toBeVisible();
+  await expect(page.getByText('Illustration / Stencil', { exact: true })).toBeVisible();
+  await expect(page.getByText('Alpha', { exact: true })).toBeVisible();
+  await expect(page.getByText('Luminancia', { exact: true })).toBeVisible();
+  await expect(page.getByText('Luminancia invertida', { exact: true })).toBeVisible();
+  await expect(page.getByText('Background-aware', { exact: true })).toBeVisible();
+  await expect(page.getByText('Edge / line-art', { exact: true })).toBeVisible();
   await expect(page.getByText('Recomendada por métricas')).toHaveCount(1);
-  await expect(page.locator('.candidate-card')).toHaveCount(7);
-  await expect(page.locator('.candidate-card canvas')).toHaveCount(14);
-  await expect(page.getByText('Score', { exact: true })).toHaveCount(7);
+  await expect(page.locator('.candidate-card')).toHaveCount(8);
+  await expect(page.locator('.candidate-card canvas')).toHaveCount(16);
+  await expect(page.getByText('Score', { exact: true })).toHaveCount(8);
 });
 
 test('the main application still opens the unchanged editor flow', async ({ page }) => {

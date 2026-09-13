@@ -34,6 +34,8 @@ export type MaskMetrics = {
   blackPercentage: number;
   componentCount: number;
   smallComponentCount: number;
+  /** Share of black pixels living in tiny components (<= small-component limit). Low values mean the ink is structural (long contours/masses); high values mean speckle noise. */
+  tinyComponentInkPercentage: number;
   largestComponentPercentage: number;
   borderCoveragePercentage: number;
   largestComponentTouchesBorder: boolean;
@@ -56,7 +58,7 @@ export type MaskScore = {
   penalties: string[];
 };
 
-export type ClientResultLabel = 'Recomendada' | 'Más detalle' | 'Más simple';
+export type ClientResultLabel = 'Recomendada' | 'Alternativa' | 'Alternativa 1' | 'Alternativa 2';
 
 export type SelectedMaskCandidate = {
   candidate: MaskCandidate;

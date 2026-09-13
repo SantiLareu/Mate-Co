@@ -7,7 +7,10 @@ export function calculateMaskMetrics(mask: BinaryMask): MaskMetrics {
   const components = connectedComponents(mask, 1);
   const largest = components.reduce((current, component) => component.pixels.length > (current?.pixels.length ?? 0) ? component : current, undefined as typeof components[number] | undefined);
   const smallLimit = Math.max(3, Math.round(total * .00002));
-  const smallComponentCount = components.filter(component => component.pixels.length <= smallLimit).length;
+  const smallComponents = components.filter(component => component.pixels.length <= smallLimit);
+  const smallComponentCount = smallComponents.length;
+  const tinyInkPixels = smallComponents.reduce((sum, component) => sum + component.pixels.length, 0);
+  const tinyComponentInkPercentage = blackPixels ? tinyInkPixels / blackPixels * 100 : 0;
   let blackBorderPixels = 0;
   let borderPixels = 0;
   for (let y = 0; y < mask.height; y += 1) {
@@ -31,6 +34,7 @@ export function calculateMaskMetrics(mask: BinaryMask): MaskMetrics {
     blackPercentage,
     componentCount: components.length,
     smallComponentCount,
+    tinyComponentInkPercentage,
     largestComponentPercentage,
     borderCoveragePercentage,
     largestComponentTouchesBorder: largest?.touchesBorder ?? false,

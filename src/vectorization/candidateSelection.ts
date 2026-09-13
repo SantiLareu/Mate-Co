@@ -24,7 +24,9 @@ export function isViableCandidate(candidate: MaskCandidate) {
   if (metrics.blackPercentage < .5 || metrics.blackPercentage > 88) return false;
   if (metrics.borderCoveragePercentage > 88) return false;
   if (metrics.largestComponentTouchesBorder && metrics.largestComponentPercentage > 72) return false;
-  if (metrics.smallComponentCount > 500) return false;
+  // A high tiny-component count alone does not disqualify structural line-art:
+  // only reject when most of the ink itself is speckle noise.
+  if (metrics.smallComponentCount > 500 && metrics.tinyComponentInkPercentage > 25) return false;
   return true;
 }
 
@@ -39,17 +41,6 @@ export function groupSimilarCandidates(candidates: MaskCandidate[]): CandidateGr
   return groups;
 }
 
-function complexity(candidate: MaskCandidate) {
-  const strategyDetail = candidate.strategy === 'edge' ? 18
-    : candidate.strategy === 'photo-engraving' ? 13
-      : candidate.strategy === 'illustration-stencil' ? 11
-        : candidate.strategy === 'alpha' ? -4 : 0;
-  return Math.log2(candidate.metrics.componentCount + 1) * 12
-    + Math.log2(candidate.metrics.smallComponentCount + 1) * 5
-    + (100 - candidate.metrics.largestComponentPercentage) * .12
-    + strategyDetail;
-}
-
 function diversityFrom(candidate: MaskCandidate, selected: MaskCandidate[]) {
   return Math.min(...selected.map(current => {
     const similarity = compareMasks(candidate.mask, current.mask);
@@ -61,10 +52,10 @@ function diversityFrom(candidate: MaskCandidate, selected: MaskCandidate[]) {
 }
 
 function labelsForSelection(selected: MaskCandidate[]): ClientResultLabel[] {
+  // Alternatives are ordered by visual diversity, not by a detail scale.
   if (selected.length === 1) return ['Recomendada'];
-  if (selected.length === 2) return ['Recomendada', complexity(selected[1]) >= complexity(selected[0]) ? 'Más detalle' : 'Más simple'];
-  const secondIsDetailed = complexity(selected[1]) >= complexity(selected[2]);
-  return ['Recomendada', secondIsDetailed ? 'Más detalle' : 'Más simple', secondIsDetailed ? 'Más simple' : 'Más detalle'];
+  if (selected.length === 2) return ['Recomendada', 'Alternativa'];
+  return ['Recomendada', 'Alternativa 1', 'Alternativa 2'];
 }
 
 export function selectBestCandidates(candidates: MaskCandidate[], maximum = 3): SelectedMaskCandidate[] {
