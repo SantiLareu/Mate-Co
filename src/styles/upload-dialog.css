@@ -1,0 +1,66 @@
+/* Upload dialog presentation. Reuses .icon-drawer (app.css) and the client
+ * option primitives (vector-lab.css); only layout/width/preview rules live
+ * here so the lab stylesheet is never touched. */
+
+dialog.upload-dialog {
+  width: min(920px, 100vw);
+}
+
+.upload-intro {
+  margin: 0 0 16px;
+  font-weight: 700;
+  color: #59613b;
+}
+
+.upload-dialog .client-option-preview {
+  min-height: 0;
+  height: 240px;
+}
+
+.upload-result-preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+.upload-dialog .client-option > span {
+  padding: 11px 4px 3px;
+}
+
+.upload-dialog .client-result-action {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.upload-secondary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  color: #59613b;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.upload-secondary input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.upload-secondary:focus-within {
+  outline: 3px solid #92996e;
+  outline-offset: 3px;
+}
+
+@media (max-width: 800px) {
+  .upload-dialog .client-option-preview {
+    height: 210px;
+  }
+}

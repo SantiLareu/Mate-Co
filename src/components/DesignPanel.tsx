@@ -1,6 +1,7 @@
 import type { CircularLines } from '../App';
 import type { TextElement } from './CurvedText';
 import type { DesignIcon } from './IconElement';
+import type { UploadedGraphicElement } from './UploadedGraphic';
 
 type Props = {
   selected: TextElement | null;
@@ -9,13 +10,21 @@ type Props = {
   selectedIcon: DesignIcon | null;
   onAddIcon: () => void;
   onUpdateIcon: (id: string, changes: Partial<DesignIcon>) => void;
+  selectedGraphic: UploadedGraphicElement | null;
+  onUploadImage: () => void;
+  onUpdateGraphic: (id: string, changes: Partial<UploadedGraphicElement>) => void;
   circularLines: CircularLines;
   onCircularLinesChange: (lines: CircularLines) => void;
 };
 
 const fonts = ['Georgia', 'Arial', 'Times New Roman', 'Trebuchet MS', 'Verdana'];
 
-export default function DesignPanel({ selected, onAdd, onUpdate, selectedIcon, onAddIcon, onUpdateIcon, circularLines, onCircularLinesChange }: Props) {
+export default function DesignPanel({ selected, onAdd, onUpdate, selectedIcon, onAddIcon, onUpdateIcon, selectedGraphic, onUploadImage, onUpdateGraphic, circularLines, onCircularLinesChange }: Props) {
+  const activeGraphic = selectedIcon ?? selectedGraphic;
+  const updateActiveGraphic = (changes: Partial<DesignIcon> & Partial<UploadedGraphicElement>) => {
+    if (selectedIcon) onUpdateIcon(selectedIcon.id, changes);
+    else if (selectedGraphic) onUpdateGraphic(selectedGraphic.id, changes);
+  };
   return (
     <section className="templates design-panel" aria-labelledby="design-title">
       <p className="eyebrow">DISEÑO</p>
@@ -28,6 +37,7 @@ export default function DesignPanel({ selected, onAdd, onUpdate, selectedIcon, o
           <div className="add-elements">
             <button type="button" className="template-option add-text" onClick={onAdd}>+ Agregar texto</button>
             <button type="button" className="template-option add-icon" onClick={onAddIcon}>+ Agregar ícono</button>
+            <button type="button" className="template-option add-image" onClick={onUploadImage}>+ Subir imagen</button>
           </div>
         </section>
 
@@ -47,9 +57,9 @@ export default function DesignPanel({ selected, onAdd, onUpdate, selectedIcon, o
         <section className="design-section icon-section" aria-labelledby="icon-editor-title">
           <h2 id="icon-editor-title">Ícono</h2>
           <div className="icon-editor panel-actions">
-            <button type="button" className="design-action mirror-icon" disabled={!selectedIcon} aria-pressed={selectedIcon?.mirrored ?? false} onClick={() => selectedIcon && onUpdateIcon(selectedIcon.id, { mirrored: !selectedIcon.mirrored })}>Espejo</button>
-            <button type="button" className="design-action invert-icon" disabled={!selectedIcon} aria-pressed={selectedIcon?.inverted ?? false} onClick={() => selectedIcon && onUpdateIcon(selectedIcon.id, { inverted: !selectedIcon.inverted })}>Invertir</button>
-            <button type="button" className="design-action reset-icon-angle" disabled={!selectedIcon} onClick={() => selectedIcon && onUpdateIcon(selectedIcon.id, { rotation: 0 })}>Ángulo inicial</button>
+            <button type="button" className="design-action mirror-icon" disabled={!activeGraphic} aria-pressed={activeGraphic?.mirrored ?? false} onClick={() => activeGraphic && updateActiveGraphic({ mirrored: !activeGraphic.mirrored })}>Espejo</button>
+            <button type="button" className="design-action invert-icon" disabled={!activeGraphic} aria-pressed={activeGraphic?.inverted ?? false} onClick={() => activeGraphic && updateActiveGraphic({ inverted: !activeGraphic.inverted })}>Invertir</button>
+            <button type="button" className="design-action reset-icon-angle" disabled={!activeGraphic} onClick={() => activeGraphic && updateActiveGraphic({ rotation: 0 })}>Ángulo inicial</button>
           </div>
         </section>
 
@@ -64,7 +74,7 @@ export default function DesignPanel({ selected, onAdd, onUpdate, selectedIcon, o
 
         <section className="design-section vectorize-section" aria-labelledby="vectorize-title">
           <h2 id="vectorize-title">Vectorizar imagen</h2>
-          <p>Próximamente vas a poder preparar una imagen para grabarla.</p>
+          <p>Subí una imagen y elegí cómo grabarla en la virola.</p>
         </section>
       </div>
       <button type="button" className="confirm design-confirm">Continuar a confirmación</button>
