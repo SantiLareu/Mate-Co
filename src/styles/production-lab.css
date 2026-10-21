@@ -1,0 +1,229 @@
+/* Production lab (P2): isolated side-by-side panes, no shared editor styles. */
+
+.production-lab {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+  font-family: inherit;
+}
+
+.production-lab h1 {
+  font-size: 1.5rem;
+  margin: 0 0 8px;
+}
+
+.production-lab h2 {
+  font-size: 1.1rem;
+  margin: 0 0 12px;
+}
+
+.lab-lede {
+  max-width: 70ch;
+  margin: 0 0 16px;
+}
+
+.lab-inputs {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.lab-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.lab-field input {
+  font: inherit;
+  font-weight: 400;
+  padding: 8px 10px;
+  max-width: 220px;
+}
+
+.lab-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .lab-panes {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lab-panes section {
+  border: 1px solid #d7d9dc;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.lab-source-meta,
+.lab-provenance-note,
+.lab-legend-note,
+.lab-lines-note,
+.lab-advance-note,
+.lab-measuring {
+  font-size: 0.9rem;
+  max-width: 70ch;
+}
+
+/* C2: selector de estrategia (radios) y lectura aplicada. Aditivo. */
+.lab-strategy {
+  border: 1px solid #d7d9dc;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 0 0 20px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lab-strategy legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+
+.lab-strategy-option {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 0.95rem;
+}
+
+.lab-strategy-option input {
+  accent-color: #2f6b4f;
+}
+
+.lab-strategy-readout {
+  font-size: 0.9rem;
+  max-width: 70ch;
+  border-left: 3px solid #2f6b4f;
+  padding-left: 10px;
+}
+
+.lab-field-error {
+  font-size: 0.9rem;
+  color: #8f1d1d;
+  margin: 0 0 12px;
+  max-width: 70ch;
+}
+
+.lab-advance-note {
+  border-left: 3px solid #a08600;
+  padding-left: 10px;
+}
+
+.lab-legend-note,
+.lab-lines-note {
+  border-left: 3px solid #6b7280;
+  padding-left: 10px;
+}
+
+.lab-provenance-note {
+  border-left: 3px solid #8b906e;
+  padding-left: 10px;
+}
+
+.lab-physical-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.lab-warnings,
+.lab-clearances,
+.lab-pairs,
+.lab-panes [data-testid="lab-diameter-issue"] {
+  font-size: 0.9rem;
+  padding-left: 20px;
+  max-width: 70ch;
+}
+
+.lab-warnings li {
+  margin-bottom: 4px;
+}
+
+.lab-panes details {
+  margin-top: 12px;
+}
+
+.lab-panes pre {
+  max-height: 320px;
+  overflow: auto;
+  font-size: 0.75rem;
+  background: #f4f4f2;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+/* J3: explicit source indicator (demo fixture vs selected job) and the
+   named job-error state. Additive only; demo styles untouched. */
+.lab-source-note {
+  font-size: 0.9rem;
+  max-width: 70ch;
+  border-left: 3px solid #2f6b4f;
+  padding-left: 10px;
+}
+
+.lab-job-error {
+  font-size: 0.95rem;
+  color: #8f1d1d;
+  border-left: 3px solid #8f1d1d;
+  padding-left: 10px;
+  max-width: 70ch;
+}
+
+/* E2: physical vector export panel. Additive only; demo styles untouched. */
+.lab-export {
+  border: 1px solid #d7d9dc;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 16px 0;
+  max-width: 70ch;
+}
+
+.lab-export h3 {
+  font-size: 1rem;
+  margin: 0 0 8px;
+}
+
+.lab-export-experimental {
+  font-size: 0.9rem;
+  border-left: 3px solid #a08600;
+  padding-left: 10px;
+  margin: 0 0 8px;
+}
+
+.lab-export-file {
+  font-size: 0.9rem;
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+
+.lab-export-button {
+  font: inherit;
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #2f6b4f;
+  background: #2f6b4f;
+  color: #fff;
+  cursor: pointer;
+}
+
+.lab-export-button:disabled {
+  border-color: #9aa0a6;
+  background: #e8eaed;
+  color: #5f6368;
+  cursor: not-allowed;
+}
+
+.lab-export-status {
+  font-size: 0.9rem;
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}

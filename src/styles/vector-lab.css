@@ -94,6 +94,19 @@
 .candidate-warnings { margin: 14px 0 0; padding-left: 22px; color: #8b3529; }
 .candidate-ok { margin: 14px 0 0; color: #5f6842; font-weight: 700; }
 .candidate-diagnosis { margin: 14px 0 0; color: #505963; font-weight: 700; }
+.svg-import { display: block; border-color: #cdd2b9; background: #fbfcf7; }
+.svg-import-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+.svg-import-heading h2 { margin-bottom: 6px; }
+.svg-import-heading p { margin-bottom: 0; color: #737b85; }
+.svg-import-rejected { margin-top: 20px; padding: 18px; border-radius: 14px; background: #fff0ec; color: #8b3529; }
+.svg-import-rejected h3 { margin-bottom: 8px; }
+.svg-import-rejected p { margin: 0 0 6px; }
+.svg-import-code { font-size: 13px; font-weight: 700; }
+.svg-import-filename { margin: 20px 0 0; color: #59613b; font-weight: 800; }
+.svg-import-json { margin-top: 20px; }
+.svg-import-json summary { cursor: pointer; font-weight: 800; color: #59613b; }
+.svg-import-json pre { max-height: 320px; overflow: auto; padding: 14px; border-radius: 12px; background: #242d3b; color: #e8ecdf; font-size: 12px; }
+.vector-result-preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
 @media (max-width: 800px) {
   .vector-lab { padding: 18px; }
   .vector-lab-header, .candidate-heading, .client-results-heading, .vector-result-heading { align-items: stretch; flex-direction: column; }

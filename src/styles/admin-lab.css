@@ -1,0 +1,358 @@
+/**
+ * Estética de la biblioteca del dueño: papelería de taller — fondo marfil,
+ * tinta sepia, un solo acento verde grabado. Nada de tarjetas SaaS
+ * genéricas: lista sobria en rejilla, hoja de carga como foco único.
+ */
+
+.admin-lab {
+  --lab-paper: #f7f3ea;
+  --lab-ink: #2b2620;
+  --lab-muted: #6f6558;
+  --lab-line: #ddd2bd;
+  --lab-accent: #2f6b4f;
+  --lab-danger: #a33b2e;
+  min-height: 100dvh;
+  background: var(--lab-paper);
+  color: var(--lab-ink);
+  padding: 1.25rem clamp(1rem, 4vw, 2.5rem) 3rem;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.admin-lab-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--lab-ink);
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-lab-title {
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.admin-lab-sub {
+  margin: 0.35rem 0 0;
+  color: var(--lab-muted);
+  font-size: 1rem;
+  max-width: 60ch;
+}
+
+.admin-lab-primary {
+  background: var(--lab-accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.7rem 1.4rem;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.admin-lab-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.admin-lab-ghost {
+  background: transparent;
+  color: var(--lab-ink);
+  border: 1px solid var(--lab-line);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.admin-lab-danger,
+.admin-lab-danger-ghost {
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.admin-lab-danger {
+  background: var(--lab-danger);
+  color: #fff;
+  border: none;
+}
+
+.admin-lab-danger-ghost {
+  background: transparent;
+  color: var(--lab-danger);
+  border: 1px solid currentColor;
+}
+
+.admin-lab button:focus-visible,
+.admin-lab input:focus-visible,
+.admin-lab select:focus-visible {
+  outline: 3px solid var(--lab-accent);
+  outline-offset: 2px;
+}
+
+.admin-lab-notice {
+  border-left: 4px solid var(--lab-accent);
+  background: #eef3ec;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.admin-lab-hidden {
+  display: none;
+}
+
+.admin-lab-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.admin-lab-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-family: system-ui, sans-serif;
+  font-size: 0.95rem;
+}
+
+.admin-lab-field input,
+.admin-lab-field select {
+  font: inherit;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--lab-line);
+  border-radius: 0.5rem;
+  background: #fff;
+  color: var(--lab-ink);
+  min-width: min(16rem, 80vw);
+}
+
+.admin-lab-empty {
+  font-style: italic;
+  color: var(--lab-muted);
+}
+
+.admin-lab-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+}
+
+.admin-lab-card {
+  background: #fff;
+  border: 1px solid var(--lab-line);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-lab-svg {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  background:
+    linear-gradient(
+      45deg,
+      #eee8d8 25%,
+      transparent 25%,
+      transparent 75%,
+      #eee8d8 75%
+    ),
+    linear-gradient(
+      45deg,
+      #eee8d8 25%,
+      transparent 25%,
+      transparent 75%,
+      #eee8d8 75%
+    );
+  background-size: 1rem 1rem;
+  background-position:
+    0 0,
+    0.5rem 0.5rem;
+  background-color: #fbf8f1;
+}
+
+.admin-lab-card-body {
+  padding: 0.75rem 0.9rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-family: system-ui, sans-serif;
+}
+
+.admin-lab-category {
+  color: var(--lab-muted);
+  font-size: 0.9rem;
+}
+
+.admin-lab-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.admin-lab-toggle {
+  border: 1px solid var(--lab-line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+  font: inherit;
+}
+
+.admin-lab-toggle.on {
+  background: var(--lab-accent);
+  border-color: var(--lab-accent);
+  color: #fff;
+}
+
+.admin-lab-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(43, 38, 32, 0.55);
+  display: flex;
+  align-items: start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+.admin-lab-sheet {
+  background: var(--lab-paper);
+  border: 1px solid var(--lab-line);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: min(34rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.admin-lab-sheet h2,
+.admin-lab-sheet h3 {
+  margin: 0;
+}
+
+.admin-lab-file {
+  font-size: 0.9rem;
+  color: var(--lab-muted);
+}
+
+.admin-lab-error {
+  border-left: 4px solid var(--lab-danger);
+  background: #f9e9e6;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-family: system-ui, sans-serif;
+}
+
+.admin-lab-preview .admin-lab-svg {
+  border: 1px solid var(--lab-line);
+  border-radius: 0.5rem;
+}
+
+.admin-lab-asset {
+  display: block;
+  object-fit: contain;
+}
+
+.admin-lab-muted {
+  color: var(--lab-muted);
+  font-size: 0.9rem;
+  font-family: system-ui, sans-serif;
+}
+
+.admin-lab-success {
+  margin: 0 0 0.75rem;
+  color: var(--lab-accent);
+  font:
+    600 0.95rem system-ui,
+    sans-serif;
+}
+
+.admin-lab-foot {
+  margin-top: 2rem;
+}
+
+/* J2 pending jobs (read-only, same workshop paper language). */
+.jobs-pending {
+  margin-top: 2.5rem;
+  border-top: 2px solid var(--lab-ink);
+  padding-top: 1.25rem;
+}
+.jobs-pending-title {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.25rem, 4vw, 1.7rem);
+}
+.jobs-pending-card-body {
+  padding: 0.75rem 0.9rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-family: system-ui, sans-serif;
+  overflow-wrap: anywhere;
+}
+.jobs-pending-meta {
+  color: var(--lab-muted);
+  font-size: 0.9rem;
+  font-family: system-ui, sans-serif;
+}
+.jobs-pending-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: start;
+}
+.jobs-pending-detail h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.jobs-pending-detail .job-snapshot {
+  width: min(100%, 28rem);
+  border: 1px solid var(--lab-line);
+  border-radius: 0.75rem;
+  background: #fbf8f1;
+}
+.jobs-pending-card .job-snapshot {
+  aspect-ratio: 1;
+}
+.jobs-pending-facts {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  font-size: 0.95rem;
+}
+.jobs-pending-facts > div {
+  display: flex;
+  gap: 0.5rem;
+}
+.jobs-pending-facts dt {
+  font-weight: 600;
+}
+.jobs-pending-facts dd {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-lab * {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* J3: explicit open-in-physical-lab control inside the read-only job
+   detail. Additive only. */
+.jobs-open-lab {
+  color: var(--lab-accent);
+  font-weight: bold;
+}
