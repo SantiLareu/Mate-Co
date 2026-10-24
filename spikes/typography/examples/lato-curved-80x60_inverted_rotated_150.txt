@@ -1,0 +1,35 @@
+80x60 inverted rotated -150: fontSize=2.6718mm baselineR=32.5954mm
+length browser=43.1491 spike=43.1410 diff=0.0187% | ignoring kern diff=5.056%
+MAX with kerning dPos=0.0107mm dRot=0.158deg | ignoring kerning dPos=1.1535mm
+0 '¿' kern=0.0000mm dPos=0.0081mm dRot=0.072deg
+1 'T' kern=-0.2244mm dPos=0.0102mm dRot=0.158deg
+2 'é' kern=-0.3233mm dPos=0.0017mm dRot=0.127deg
+3 ' ' kern=0.0000mm dPos=0.0008mm dRot=0.127deg
+4 'o' kern=0.0000mm dPos=0.0020mm dRot=0.128deg
+5 ' ' kern=0.0000mm dPos=0.0008mm dRot=0.044deg
+6 'V' kern=-0.0989mm dPos=0.0036mm dRot=0.131deg
+7 'i' kern=0.0000mm dPos=0.0032mm dRot=0.132deg
+8 'n' kern=0.0000mm dPos=0.0029mm dRot=0.130deg
+9 'o' kern=0.0000mm dPos=0.0009mm dRot=0.060deg
+10 '?' kern=-0.0815mm dPos=0.0031mm dRot=0.131deg
+11 ' ' kern=0.0000mm dPos=0.0055mm dRot=0.136deg
+12 '¡' kern=0.0000mm dPos=0.0018mm dRot=0.027deg
+13 'Y' kern=-0.1242mm dPos=0.0052mm dRot=0.129deg
+14 'a' kern=-0.2992mm dPos=0.0046mm dRot=0.134deg
+15 ',' kern=0.0000mm dPos=0.0069mm dRot=0.138deg
+16 ' ' kern=0.0000mm dPos=0.0049mm dRot=0.069deg
+17 'T' kern=-0.0802mm dPos=0.0016mm dRot=0.047deg
+18 'í' kern=-0.0989mm dPos=0.0048mm dRot=0.135deg
+19 'a' kern=0.0000mm dPos=0.0040mm dRot=0.133deg
+20 ' ' kern=0.0000mm dPos=0.0010mm dRot=0.054deg
+21 'A' kern=-0.0895mm dPos=0.0047mm dRot=0.130deg
+22 'n' kern=-0.0040mm dPos=0.0049mm dRot=0.134deg
+23 'a' kern=0.0000mm dPos=0.0053mm dRot=0.135deg
+24 '!' kern=0.0000mm dPos=0.0062mm dRot=0.137deg
+25 ' ' kern=0.0000mm dPos=0.0045mm dRot=0.060deg
+26 'A' kern=-0.0895mm dPos=0.0023mm dRot=0.006deg
+27 'V' kern=-0.1496mm dPos=0.0031mm dRot=0.008deg
+28 'A' kern=-0.1496mm dPos=0.0028mm dRot=0.025deg
+29 'T' kern=-0.1884mm dPos=0.0036mm dRot=0.024deg
+30 'A' kern=-0.1884mm dPos=0.0102mm dRot=0.143deg
+31 'R' kern=0.0000mm dPos=0.0107mm dRot=0.144deg

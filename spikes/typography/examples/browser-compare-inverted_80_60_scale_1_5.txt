@@ -1,0 +1,26 @@
+length browser=54.213541666666664 spike=54.208969465648856 diff=0.0084%
+0 'M' dPos=0.0085mm dRot=0.201deg
+1 'a' dPos=0.0082mm dRot=0.203deg
+2 't' dPos=0.0081mm dRot=0.204deg
+3 'e' dPos=0.0102mm dRot=0.207deg
+4 '&' dPos=0.0116mm dRot=0.208deg
+5 'C' dPos=0.0123mm dRot=0.210deg
+6 'o' dPos=0.0130mm dRot=0.211deg
+7 ' ' dPos=0.0104mm dRot=0.209deg
+8 '·' dPos=0.0121mm dRot=0.211deg
+9 ' ' dPos=0.0132mm dRot=0.213deg
+10 'E' dPos=0.0124mm dRot=0.211deg
+11 'd' dPos=0.0101mm dRot=0.206deg
+12 'i' dPos=0.0092mm dRot=0.206deg
+13 'c' dPos=0.0102mm dRot=0.207deg
+14 'i' dPos=0.0124mm dRot=0.212deg
+15 'ó' dPos=0.0112mm dRot=0.208deg
+16 'n' dPos=0.0124mm dRot=0.211deg
+17 ' ' dPos=0.0116mm dRot=0.211deg
+18 'f' dPos=0.0123mm dRot=0.212deg
+19 'í' dPos=0.0131mm dRot=0.213deg
+20 's' dPos=0.0140mm dRot=0.214deg
+21 'i' dPos=0.0144mm dRot=0.215deg
+22 'c' dPos=0.0157mm dRot=0.217deg
+23 'a' dPos=0.0168mm dRot=0.218deg
+MAX dPos=0.0168mm dRot=0.218deg
