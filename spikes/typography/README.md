@@ -11,7 +11,10 @@ build oficial de Poppins no ejercita.
 
 | Ruta | Rol |
 |---|---|
-| `curvedTextOutlines.ts` | Núcleo puro: layout de texto sobre arco + contornos de glifo → paths SVG en mm. |
+| `curvedTextOutlines.ts` | Núcleo puro: layout de texto sobre arco + contornos de glifo → paths SVG en mm. Compartido por los dos motores de contorno. |
+| `hb/harfbuzzShaper.ts` | Shaper HarfBuzz (WASM): GSUB, GPOS, ejes variables y contornos por glifo. |
+| `hb/curvedHarfBuzz.ts` | Layout curvo + serialización para una run ya *shapeada* (reutiliza el núcleo). |
+| `hb-harness/` | Harness aislado (servidor Vite propio, puerto 4180) para cargar el WASM sin tocar la configuración del producto. |
 | `gposKerning.ts` | Lector GPOS propio de pair kerning; **falla cerrado** ante lo no soportado. |
 | `opentype.d.ts` | Tipos mínimos de opentype.js 2.0.0 (el paquete no trae tipos). |
 | `harness.html` | Página en blanco para las comparaciones en navegador (no es la app). |
@@ -125,6 +128,58 @@ Los SVG de ejemplo y las métricas se escriben en `test-results/spike-typography
 - **Fuentes variables no soportadas**: el motor lee la instancia por defecto de
   un `fvar`; Chromium aplica el eje `wght` real. Playfair Display, Merriweather
   y Dancing Script se distribuyen hoy como fuentes variables.
+
+## Motor con HarfBuzz (experimental, aislado)
+
+`harfbuzzjs@1.6.4` (MIT, proyecto oficial de HarfBuzz) resuelve lo que el motor
+propio no podía: **GSUB** (ligaduras y sustituciones contextuales), **GPOS**
+(kerning real, incluidos lookups con `lookupFlag` y GDEF) y **ejes variables**
+(`setVariations` → el contorno ya es el de la instancia). Trae además el
+extractor de contornos (`font.glyphToJson`), de modo que glifos y contornos
+salen siempre de la **misma instancia de fuente**.
+
+Estado (validado contra Chromium el 2026-10-24, `tests/spike-typography-harfbuzz.spec.ts`):
+
+| Comprobación | Resultado |
+|---|---|
+| Las 12 secuencias GSUB de Lato (`ff fi fj fk fb fh ft tf ti tt fí`) | coinciden con el navegador ≤ 1/64 px |
+| Barrido completo de 5625 pares (Lato y Poppins) | ≤ 1/64 px en **todos** |
+| Texto curvo (85/50, 80/60, 75/65; normal, invertido, rotado) en Poppins, Lato y Dancing Script | longitud ≤ 1 %, posición ≤ 0,2 mm, rotación ≤ 0,5°, desviación de tinta ≤ 0,2 mm (mediana 0,0006 mm) |
+| Sustitución contextual `or` de Dancing Script y eje `wght` 400/600/700 | coinciden con el navegador |
+| Determinismo | 3 compilaciones → SVG byte-idéntico |
+| Fallos explícitos | glifo ausente → `GLYPH_MISSING`; texto no NFC → `TEXT_NOT_NFC` |
+
+### Integración con Vite (coste real medido)
+
+El paquete trae el WASM con `new URL("harfbuzz.wasm", import.meta.url)` y su
+entrypoint usa **top-level await**: hacen falta (a) un `locateFile`/asset
+explícito, (b) `target: "esnext"` y (c) que el import sea **dinámico con
+especificador calculado en runtime**, porque el escáner de dependencias de Vite
+recorre los `.html` del proyecto y llevaría el paquete al optimizador del
+**producto** (que falla con el target por defecto). Todo esto vive en el
+harness aislado; la configuración del producto no se toca.
+
+| Pieza | Raw | gzip |
+|---|---|---|
+| `harfbuzz.wasm` | 444 394 B | 179 585 B |
+| `index.mjs` (wrapper) | 85 257 B | 17 404 B |
+| `harfbuzz.js` (glue emscripten) | 32 099 B | 6 743 B |
+| **Total HarfBuzz** | **561 750 B** | **203 732 B** |
+
+Tiempos medidos en el build servido por HTTP: carga e instanciación del WASM
+**35,6 ms**, página lista **70 ms**, composición+layout **2,9–8,7 ms** por texto
+(51 ms la primera, con calentamiento).
+
+### Límites del motor con HarfBuzz
+
+- Sigue sin **shaping** completo: no hay soporte de `mark`/`mkmk` para
+  CombiningMarks (el texto no NFC se rechaza).
+- El motor es **nuevo**: la paridad con Chromium está medida para el catálogo
+  probado (Poppins, Lato, Dancing Script), no garantizada para cualquier fuente.
+- La pre-*carga* del WASM son ~204 KB gzip: conviene **cargarlo de forma
+  diferida** (sólo cuando el usuario elige una tipografía empaquetada).
+- El motor con HarfBuzz **no está integrado en `src/`**: el gate productivo
+  sigue devolviendo `FONT_OUTLINES_UNAVAILABLE`.
 
 ## Cobertura de GSUB (medido contra Chromium, 2026-10-24)
 

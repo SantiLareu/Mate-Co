@@ -17,7 +17,26 @@
  *  - letter-spacing is added after every glyph (trailing one included in the
  *    anchoring length, as the browser does).
  */
-import opentype, { type Font, type Glyph } from "opentype.js";
+import * as opentypeNamespace from "opentype.js";
+import type { Font, Glyph } from "opentype.js";
+
+type OpentypeApi = { parse: (buffer: ArrayBuffer) => Font };
+
+/**
+ * Vite's dependency pre-bundle exposes opentype.js with DIFFERENT interop
+ * shapes depending on the bundle format it picks:
+ *   - CJS-shaped bundle: only `default` (the whole module.exports);
+ *   - ESM-shaped bundle: the named exports (parse, load, Font, ...) and NO
+ *     `default`.
+ * A default import therefore fails in the second case ("does not provide an
+ * export named 'default'"), and a namespace import fails in the first one
+ * ("opentype.parse is not a function"). Both shapes are in play in this repo
+ * (the product server and the isolated HarfBuzz harness), so the core picks
+ * whichever actually provides `parse`.
+ */
+const opentype: OpentypeApi =
+  (opentypeNamespace as unknown as { default?: OpentypeApi }).default ??
+  (opentypeNamespace as unknown as OpentypeApi);
 import { readGposKerning, type KerningSource } from "./gposKerning";
 
 export type FontHandle = {
@@ -167,49 +186,108 @@ export function layoutCurvedText(
     i === 0 ? 0 : handle.kern(glyphs[i - 1].index, g.index) * k,
   );
 
-  let total = 0;
-  for (let i = 0; i < glyphs.length; i += 1) {
-    total += kerns[i] + advances[i] + req.letterSpacingMm;
-  }
-
-  const dir = req.inverted ? -1 : 1;
-  const out: LaidOutGlyph[] = [];
-  let pen = -total / 2; // arc coordinate of the next glyph origin
-  for (let i = 0; i < glyphs.length; i += 1) {
-    pen += kerns[i];
-    const sMid = pen + advances[i] / 2;
-    const theta = toRad(req.angleDegrees) + (dir * sMid) / req.baselineRadiusMm;
-    const point = (s: number) => {
-      const t = toRad(req.angleDegrees) + (dir * s) / req.baselineRadiusMm;
-      return {
-        x: req.baselineRadiusMm * Math.sin(t),
-        y: -req.baselineRadiusMm * Math.cos(t),
-      };
-    };
-    // The origin is reported along the glyph's own (rotated) x axis, so it is
-    // comparable with the browser's per-character start position.
-    const rotation = (theta * 180) / Math.PI + (req.inverted ? 180 : 0);
-    const mid = point(sMid);
-    const r = toRad(rotation);
-    out.push({
-      char: chars[i],
-      glyphIndex: glyphs[i].index,
-      advanceMm: advances[i],
-      kernMm: kerns[i],
-      sMidMm: sMid,
-      mid,
-      origin: {
-        x: mid.x - (advances[i] / 2) * Math.cos(r),
-        y: mid.y - (advances[i] / 2) * Math.sin(r),
-      },
-      rotationDegrees: rotation,
-    });
-    pen += advances[i] + req.letterSpacingMm;
-  }
+  const items: CurveItem[] = glyphs.map((_, i) => ({
+    advanceMm: advances[i],
+    kernBeforeMm: kerns[i],
+  }));
+  const curve = layoutCurveItems(items, req);
+  const out: LaidOutGlyph[] = curve.placements.map((placement, i) => ({
+    char: chars[i],
+    glyphIndex: glyphs[i].index,
+    advanceMm: advances[i],
+    kernMm: kerns[i],
+    sMidMm: placement.sMidMm,
+    mid: placement.mid,
+    origin: placement.origin,
+    rotationDegrees: placement.rotationDegrees,
+  }));
 
   return {
     ok: true,
     glyphs: out,
+    totalAdvanceMm: curve.totalAdvanceMm,
+    spanDegrees: curve.spanDegrees,
+  };
+}
+
+/**
+ * One item of the run to lay out on the arc. `kernBeforeMm` is the kerning
+ * applied BEFORE the item (0 when the shaper already folded the kerning into
+ * the advance, as HarfBuzz does).
+ */
+export type CurveItem = {
+  advanceMm: number;
+  kernBeforeMm: number;
+};
+
+export type CurvePlacement = {
+  /** Arc coordinate of the advance midpoint, from the text centre (mm). */
+  sMidMm: number;
+  /** Advance midpoint on the baseline circle, mm, centre (0,0). */
+  mid: { x: number; y: number };
+  /** Rotation of the item x axis, degrees (clockwise, y down). */
+  rotationDegrees: number;
+  /** Origin (pen position on the baseline, pre-dy), mm. */
+  origin: { x: number; y: number };
+};
+
+/**
+ * THE CURVED LAYOUT: places a run of items on the baseline circle.
+ *
+ * Extracted from layoutCurvedText so that the very same arithmetic serves
+ * both outline sources (opentype.js characters and HarfBuzz shaped clusters):
+ * the advance midpoint sits on the circle, the item is rotated to the tangent
+ * there, and the letter-spacing is added after every item.
+ */
+export function baselinePoint(
+  sMm: number,
+  req: CurvedTextRequest,
+): { x: number; y: number } {
+  const dir = req.inverted ? -1 : 1;
+  const t = toRad(req.angleDegrees) + (dir * sMm) / req.baselineRadiusMm;
+  return {
+    x: req.baselineRadiusMm * Math.sin(t),
+    y: -req.baselineRadiusMm * Math.cos(t),
+  };
+}
+
+export function layoutCurveItems(
+  items: CurveItem[],
+  req: CurvedTextRequest,
+): {
+  placements: CurvePlacement[];
+  totalAdvanceMm: number;
+  spanDegrees: number;
+} {
+  const dir = req.inverted ? -1 : 1;
+  let total = 0;
+  for (const item of items) {
+    total += item.kernBeforeMm + item.advanceMm + req.letterSpacingMm;
+  }
+  const placements: CurvePlacement[] = [];
+  let pen = -total / 2; // arc coordinate of the next glyph origin
+  for (const item of items) {
+    pen += item.kernBeforeMm;
+    const sMid = pen + item.advanceMm / 2;
+    const theta = toRad(req.angleDegrees) + (dir * sMid) / req.baselineRadiusMm;
+    // The origin is reported along the item's own (rotated) x axis, so it is
+    // comparable with the browser's per-character start position.
+    const rotation = (theta * 180) / Math.PI + (req.inverted ? 180 : 0);
+    const mid = baselinePoint(sMid, req);
+    const r = toRad(rotation);
+    placements.push({
+      sMidMm: sMid,
+      mid,
+      rotationDegrees: rotation,
+      origin: {
+        x: mid.x - (item.advanceMm / 2) * Math.cos(r),
+        y: mid.y - (item.advanceMm / 2) * Math.sin(r),
+      },
+    });
+    pen += item.advanceMm + req.letterSpacingMm;
+  }
+  return {
+    placements,
     totalAdvanceMm: total,
     spanDegrees: (total / req.baselineRadiusMm) * (180 / Math.PI),
   };
@@ -228,27 +306,51 @@ export function mm(value: number): string {
  * point is transformed individually, so curves stay exact quadratics/cubics
  * (rigid transforms preserve Bézier form). No flattening, no raster.
  */
-export function glyphPathData(
-  handle: FontHandle,
-  glyph: LaidOutGlyph,
-  req: CurvedTextRequest,
+/**
+ * Outline commands in FONT UNITS (the same shape opentype.js exposes and the
+ * same shape HarfBuzz's draw functions emit).
+ */
+export type OutlineCommand =
+  | { type: "M"; x: number; y: number }
+  | { type: "L"; x: number; y: number }
+  | { type: "Q"; x1: number; y1: number; x: number; y: number }
+  | { type: "C"; x1: number; y1: number; x2: number; y2: number; x: number; y: number }
+  | { type: "Z" };
+
+/**
+ * Rigid transform of an outline (font units) to absolute millimetres.
+ *
+ * Extracted from glyphPathData so that ANY outline source (opentype.js or
+ * HarfBuzz) goes through the exact same arithmetic and the exact same
+ * serialisation: scale, flip, dy, rotation, translation. Curves stay curves
+ * (Q/C are never flattened) and coordinates are rounded to 3 decimals (1 um).
+ */
+export function outlineToPathData(
+  commands: readonly OutlineCommand[],
+  placement: {
+    /** Advance of the glyph/cluster, mm (the outline is centred on it). */
+    advanceMm: number;
+    /** Midpoint of the advance on the baseline circle, mm. */
+    mid: { x: number; y: number };
+    /** Rotation of the glyph x axis, degrees (clockwise, y down). */
+    rotationDegrees: number;
+  },
+  scale: number,
+  dyMm: number,
 ): string {
-  const g: Glyph = handle.font.glyphs.get(glyph.glyphIndex);
-  const k = req.fontSizeMm / handle.unitsPerEm;
-  const rot = toRad(glyph.rotationDegrees);
+  const rot = toRad(placement.rotationDegrees);
   const cos = Math.cos(rot);
   const sin = Math.sin(rot);
-  const dy = req.inverted ? req.invertedDyMm : 0;
   const map = (x: number, y: number): string => {
     // glyph-local mm: x along the advance centred on its midpoint, y down.
-    const lx = x * k - glyph.advanceMm / 2;
-    const ly = -y * k + dy;
-    const px = glyph.mid.x + lx * cos - ly * sin;
-    const py = glyph.mid.y + lx * sin + ly * cos;
+    const lx = x * scale - placement.advanceMm / 2;
+    const ly = -y * scale + dyMm;
+    const px = placement.mid.x + lx * cos - ly * sin;
+    const py = placement.mid.y + lx * sin + ly * cos;
     return `${mm(px)} ${mm(py)}`;
   };
   const parts: string[] = [];
-  for (const c of g.path.commands) {
+  for (const c of commands) {
     if (c.type === "M") parts.push(`M${map(c.x, c.y)}`);
     else if (c.type === "L") parts.push(`L${map(c.x, c.y)}`);
     else if (c.type === "Q")
@@ -258,6 +360,24 @@ export function glyphPathData(
     else parts.push("Z");
   }
   return parts.join("");
+}
+
+export function glyphPathData(
+  handle: FontHandle,
+  glyph: LaidOutGlyph,
+  req: CurvedTextRequest,
+): string {
+  const g: Glyph = handle.font.glyphs.get(glyph.glyphIndex);
+  return outlineToPathData(
+    g.path.commands as unknown as readonly OutlineCommand[],
+    {
+      advanceMm: glyph.advanceMm,
+      mid: glyph.mid,
+      rotationDegrees: glyph.rotationDegrees,
+    },
+    req.fontSizeMm / handle.unitsPerEm,
+    req.inverted ? req.invertedDyMm : 0,
+  );
 }
 
 export type SpikeSvgInput = {
@@ -274,17 +394,29 @@ export type SpikeSvgResult =
   | { ok: true; svg: string; layout: CurvedTextLayout }
   | LayoutError;
 
-export function buildSpikeSvg(
-  handle: FontHandle,
-  input: SpikeSvgInput,
-): SpikeSvgResult {
-  const layout = layoutCurvedText(handle, input.request);
-  if (!layout.ok) return layout;
-  const half = input.outerDiameterMm / 2;
-  const side = input.outerDiameterMm;
+export type SpikeSvgParts = SpikeSvgInput & {
+  /** Layout to serialise (already computed by the caller). */
+  layout: CurvedTextLayout;
+  /** Name recorded in data-font (provenance of the outlines). */
+  fontName: string;
+  /** Outline of one laid-out glyph, in absolute millimetres. */
+  pathFor: (glyph: LaidOutGlyph) => string;
+};
+
+/**
+ * THE SERIALISATION: absolute millimetre paths, one per glyph, no <text>, no
+ * raster, no external references.
+ *
+ * Extracted from buildSpikeSvg so that every outline source (opentype.js or
+ * HarfBuzz) produces byte-identical SVG structure.
+ */
+export function serializeSpikeSvg(parts: SpikeSvgParts): SpikeSvgResult {
+  const { layout } = parts;
+  const half = parts.outerDiameterMm / 2;
+  const side = parts.outerDiameterMm;
   const paths = layout.glyphs
     .map((glyph, index) => {
-      const d = glyphPathData(handle, glyph, input.request);
+      const d = parts.pathFor(glyph);
       // Spaces have no contours: emit nothing (no empty path).
       return d === ""
         ? ""
@@ -293,21 +425,35 @@ export function buildSpikeSvg(
     .filter((p) => p !== "")
     .join("");
   const rings =
-    input.rings === false
+    parts.rings === false
       ? ""
       : `<g id="spike-ring-reference" fill="none" stroke="#0000FF" stroke-width="0.15">` +
-        `<circle cx="0" cy="0" r="${mm(input.outerDiameterMm / 2)}"/>` +
-        `<circle cx="0" cy="0" r="${mm(input.innerDiameterMm / 2)}"/></g>`;
+        `<circle cx="0" cy="0" r="${mm(parts.outerDiameterMm / 2)}"/>` +
+        `<circle cx="0" cy="0" r="${mm(parts.innerDiameterMm / 2)}"/></g>`;
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${mm(side)}mm" height="${mm(side)}mm" ` +
     `viewBox="${mm(-half)} ${mm(-half)} ${mm(side)} ${mm(side)}" ` +
-    `data-spike="stage4-typography" data-strategy="${input.strategy}" ` +
-    `data-size-factor="${String(input.sizeFactor)}" data-font="${escapeAttr(handle.postScriptName)}" ` +
-    `data-font-size-mm="${String(input.request.fontSizeMm)}" ` +
-    `data-baseline-radius-mm="${String(input.request.baselineRadiusMm)}">` +
+    `data-spike="stage4-typography" data-strategy="${parts.strategy}" ` +
+    `data-size-factor="${String(parts.sizeFactor)}" data-font="${escapeAttr(parts.fontName)}" ` +
+    `data-font-size-mm="${String(parts.request.fontSizeMm)}" ` +
+    `data-baseline-radius-mm="${String(parts.request.baselineRadiusMm)}">` +
     rings +
     `<g id="spike-text-outlines" fill="#000" fill-rule="nonzero">${paths}</g></svg>`;
   return { ok: true, svg, layout };
+}
+
+export function buildSpikeSvg(
+  handle: FontHandle,
+  input: SpikeSvgInput,
+): SpikeSvgResult {
+  const layout = layoutCurvedText(handle, input.request);
+  if (!layout.ok) return layout;
+  return serializeSpikeSvg({
+    ...input,
+    layout,
+    fontName: handle.postScriptName,
+    pathFor: (glyph) => glyphPathData(handle, glyph, input.request),
+  });
 }
 
 function escapeAttr(value: string): string {

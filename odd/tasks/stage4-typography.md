@@ -152,6 +152,68 @@ divergencias) es segura hoy.
 y B solo si el catálogo exige fuentes con ligaduras. No integrar ninguna fuente
 variable sin C.
 
+## Fase 2 — Validación de HarfBuzz (2026-10-24)
+
+### Bloqueo de arranque (diagnosticado y resuelto)
+
+El harness no terminaba de inicializar. Causa real, con evidencia: **el pre-bundle
+de `opentype.js` que genera el optimizador de Vite tiene dos formas de interop
+distintas** — con formato CJS sólo expone `default`, con formato ESM sólo expone
+los exports nombrados (`parse`, `load`, `Font`…) y **no** `default`. El núcleo del
+spike importaba `opentype.js` **por defecto** → en el harness reventaba con
+`SyntaxError: The requested module '.../opentype__js.js' does not provide an
+export named 'default'` y `window.hb` nunca se asignaba (los 10 tests expiraban).
+Corrección mínima en el núcleo: `import * as opentypeNamespace` y elegir
+`ns.default ?? ns` (la forma que aporte `parse`). Verificado: el spike del
+producto sigue 37/37 con **hashes byte-idénticos** a los ejemplos commiteados.
+
+Hipótesis descartadas con evidencia: WASI (el glue de emscripten lo resuelve:
+`versionString()` = 15.0.0), target `esnext` del optimizador (el error persistió
+tras cambiarlo) y caché compartido del optimizador (persistió con `cacheDir`
+propio).
+
+### Validación geométrica (Fase 1)
+
+Prueba nueva en `tests/spike-typography-harfbuzz.spec.ts`: texto curvo de
+HarfBuzz contra el `<textPath>` del navegador, con la metodología del spike
+(referencia en píxeles de dispositivo + desviación física tinta-tinta).
+
+| Escenario | Resultado |
+|---|---|
+| 85/50, 80/60, 75/65 × normal / invertido / rotado × Poppins, Lato, Dancing Script | 3/3 tests verdes (18 comparaciones) |
+| Longitud / posición / rotación / desviación | ≤ 1 % / ≤ 0,2 mm / ≤ 0,5° / ≤ 0,2 mm (mediana 0,0006 mm, `beyond` = 0) |
+| 10 tests previos de HarfBuzz | 10/10 |
+
+Dos fallos de implementación encontrados y corregidos por el camino: `face.upem`
+es **propiedad** (no método) en harfbuzzjs; el `Blob` que respalda la `Face`
+debe quedar **alcanzable** (el `FinalizationRegistry` de emscripten lo liberaba →
+`memory access out of bounds`); el harness quedó sin `await` al volver el shaper
+asíncrono; y `placement.advanceMm` no existe en `CurvePlacement` (NaN en el path).
+
+Dos fallos **del test** (no del motor), corregidos: el literal "no NFC" estaba
+precompuesto (nunca disparaba el caso) y la referencia del navegador renderizaba
+la fuente **variable** en wght 600 mientras el motor componía la instancia por
+defecto (400). La referencia además debe **embeber la fuente en su propio SVG**:
+un SVG rasterizado como imagen no hereda las `@font-face` de la página y el texto
+caía a una fuente de respaldo (43 % menos de tinta).
+
+### Harness construido (Fase 2)
+
+`vite build` del harness aislado: OK (221 ms). El WASM se emite como asset y el
+glue lo resuelve por URL relativa a la **página** (`base` calculada según la
+profundidad). Verificado sirviendo el build por HTTP: carga HarfBuzz 15.0.0 +
+WASM, **0 errores** de consola/página.
+
+| Pieza | Raw | gzip |
+|---|---|---|
+| harfbuzz.wasm | 444 394 B | 179 585 B |
+| index.mjs | 85 257 B | 17 404 B |
+| harfbuzz.js | 32 099 B | 6 743 B |
+| **Total HarfBuzz** | **561 750 B** | **203 732 B** |
+
+Tiempos: carga+instanciación del WASM **35,6 ms**, página lista **70 ms**,
+composición+layout **2,9–8,7 ms** por texto (51 ms la primera).
+
 ## Tasks
 
 - [x] T1: Diagnóstico medible del test rojo (75×65, −35°): antialiasing/rasterizador,
@@ -170,6 +232,13 @@ variable sin C.
 - [x] T7: Tests focalizados (spike 37/37), typecheck (`src/` OK, spike OK) y suite
       completa **512/512** (4,6 min, 0 fallos).
 - [x] T8: Informe final entregado.
+- [x] T11 (HarfBuzz): shaper + layout curvo reutilizando el núcleo, harness
+  aislado con carga de WASM resuelta (dev y build), 13 tests nuevos (10 de
+  paridad + 3 de texto curvo) más 1 de build, todos verdes.
+- [x] T12: Procedencia de Dancing Script (`PROVENANCE.md`: SHA-256 verificado
+  contra la distribución oficial, OFL, RFN "Dancing Script", eje `wght`).
+- [x] T13: Documentación del spike actualizada (README: motor HarfBuzz,
+  integración con Vite, tamaños y tiempos medidos).
 - [x] T9 (Fase 2): Evaluación de Dancing Script Bold → **detenida** con tres
   bloqueos medidos (variable, GSUB contextual, kerning no soportado) + hallazgo
   colateral en Lato (12 ligaduras contextuales no reproducidas). Alternativas y
@@ -250,6 +319,10 @@ salida sin cambios (hashes idénticos).
 L5 T4 trazabilidad Lato: commit del binario identificado y verificado por hash y blob git;
 RFN confirmado; pendiente explícito del commit de las fuentes upstream.
 L6 T5/T6 README del spike reescrito y ejemplos+métricas preservados en el spike.
+L10 HarfBuzz: arranque del harness diagnosticado (interop del pre-bundle de
+opentype.js) y corregido; validación focalizada 10/10; validación geométrica
+curva 3/3 (18 comparaciones, umbrales originales sin relajar); build del harness
+verificado con mediciones reales de tamaño y tiempo.
 L7 T7 verificación: spike 37/37, typecheck de `src/` y del spike OK, suite completa
 512/512 (4,6 min).
 L9 Fase 2 (Dancing Script): la fuente oficial es **variable** (`DancingScript[wght].ttf`,

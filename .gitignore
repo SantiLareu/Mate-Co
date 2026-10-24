@@ -5,3 +5,5 @@ test-results/
 playwright-report/
 # Local Pi runtime state
 .atl/
+# Build output of the isolated HarfBuzz harness (regenerable)
+spikes/typography/hb-harness/dist-hb/
