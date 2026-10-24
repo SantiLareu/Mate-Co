@@ -111,6 +111,10 @@ Los SVG de ejemplo y las métricas se escriben en `test-results/spike-typography
 
 ## Límites conocidos
 
+- **Sin GSUB**: el motor no implementa sustitución de glifos. Chromium sí
+  aplica `liga`/`calt`, y hay fuentes donde eso cambia la forma del texto (ver
+  "Cobertura de GSUB" abajo): el contorno exportado puede no coincidir con el
+  preview del navegador.
 - Sin shaping completo: sin ligaduras ni alternos contextuales (con
   `letter-spacing` ≠ 0 el navegador tampoco aplica ligaduras).
 - Texto no NFC o con glifo ausente → error explícito (`TEXT_NOT_NFC`,
@@ -118,6 +122,30 @@ Los SVG de ejemplo y las métricas se escriben en `test-results/spike-typography
 - Solo se probaron 2 de las 5 tipografías candidatas (Lato, Playfair Display,
   Poppins, Merriweather, Dancing Script): no hay ninguna *serif display* ni
   *script* (Dancing Script cambia por completo las métricas).
+- **Fuentes variables no soportadas**: el motor lee la instancia por defecto de
+  un `fvar`; Chromium aplica el eje `wght` real. Playfair Display, Merriweather
+  y Dancing Script se distribuyen hoy como fuentes variables.
+
+## Cobertura de GSUB (medido contra Chromium, 2026-10-24)
+
+Barrido de los 5625 pares de 2 caracteres sobre el alfabeto latino + dígitos +
+acentos, comparando el avance del navegador con el del motor
+(`avance(a) + avance(b) + kern(a,b)`):
+
+| Fuente | Pares con desviación > 0,5 px | Desviación máxima | Causa |
+|---|---|---|---|
+| Poppins SemiBold | **0** | 0,000 px | — (paridad exacta) |
+| Lato SemiBold | **12** (f/t: `ff fi fj fk fb fh ft tf ti tt fí`) | −3,741 px (3,7 % em) | GSUB `liga`/`calt` con lookups **tipo 7 (contextuales)**; el motor no hace GSUB |
+| Dancing Script (variable) | **1** (`or`) | +4,013 px (4,0 % em) | GSUB contextual para `or` |
+
+Los deltas no dependen del contexto circundante (medido con contexts `x X n A`),
+y Lato no expone esas ligaduras en `getLigatures('liga')` de opentype.js porque
+son **contextuales**, no sustituciones de ligadura directas.
+
+**Impacto**: Lato con texto español que contenga `ti` o `fi` (p. ej. "tienda",
+"fiesta") produce en el navegador un glifo distinto al que exporta el motor:
+no es un desplazamiento, es una **forma** distinta. Lato y Poppins siguen
+siendo seguros solo para textos sin esas secuencias.
 - `fontWeight 600` del editor no tiene equivalente exacto en los clones
   métricos: el spike usa los binarios OFL tal cual (peso 600).
 - Lato declara **Reserved Font Name "Lato"**: cualquier derivado, recorte o

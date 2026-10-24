@@ -86,6 +86,72 @@ Lato son idénticos antes y después de la corrección (el cambio afecta a cómo
 Separación medida entre contorno correcto y error real: media 0,0007–0,0024 mm vs
 0,10–0,30 mm; máximo 0,042–0,059 mm vs 0,50–0,94 mm.
 
+## Fase 2 — Evaluación de Dancing Script Bold (2026-10-24, sin implementación)
+
+**Decisión: NO se implementa Dancing Script en el spike.** Requiere capacidades
+que el motor no tiene, y una de ellas es una condición de parada acordada.
+
+Fuente oficial evaluada: `ofl/dancingscript/DancingScript[wght].ttf`
+(133 636 bytes, SHA-256 `21808625578fe8d8cd10cb684be546dca077b27cd03a53a2f1ec11dc743c924c`),
+google/fonts `main`, OFL 1.1, **Reserved Font Name "Dancing Script"**, fuente
+upstream googlefonts/DancingScript @ `291f87c05206179b6bfd53735a5638b5cc84e3b3`,
+643 glifos, 1000 upm, **eje `wght` 400–700** (por defecto 400). El estático
+`DancingScript-Bold.ttf` ya **no se distribuye** (se retiró en `be7d803a18df`,
+2019); solo existe en el historial (`1b408cfce4dd`, 2016, 122 748 bytes,
+SHA-256 `16ccbad9c1534d114efc2d3317f9f489ec853a233b6ffefd67261d9aeeb96ab6`).
+Cobertura del español: **100 %** (áéíóúüñÁÉÍÓÚÜÑ¿¡ y ASCII presentes).
+
+Tres bloqueos, medidos:
+
+1. **Fuente variable**: Chromium aplica el eje `wght` (longitud de la misma frase
+   a em 100 px: 1730 px a 400, 1770,84 a 600, 1791,91 a 700 → **+3,6 %** entre
+   extremos). El motor (opentype.js 2.0.0) lee **solo la instancia por defecto**
+   (wght 400) y no interpola `gvar`/`avar`. El editor renderiza con
+   `font-weight: 600` → el desajuste acumulado llega a ~1 mm en la virola 85/50,
+   5× la tolerancia de 0,2 mm.
+2. **GSUB contextual**: el navegador sustituye el par `or` (delta **+4,013 px**
+   = 4,0 % del em, medido sobre 5625 pares). El motor no hace GSUB → exportaría
+   un glifo `o` distinto del que se ve en el preview. Con el estático de 2016 la
+   divergencia es **mayor**: 24 pares, hasta 5,287 px (incluye `or` y `th`).
+3. **Kerning no soportado**: el `kern` de Dancing Script usa `lookupFlag 8`
+   (IGNORE_LIGATURES) y la fuente **tiene GDEF** → el lector GPOS del spike
+   **falla cerrado** con `KERNING_UNSUPPORTED: lookup 0: lookupFlag 8 con GDEF
+   (omisión de glifos) no soportado`. Correcto por diseño, pero implica que la
+   fuente no es usable con el motor actual.
+
+**Hallazgo colateral (afecta a Lato, ya commiteada)**: barrido de los 5625
+pares con el kerning del spike:
+
+| Fuente | Pares con desviación > 0,5 px | Máximo | Interpretación |
+|---|---|---|---|
+| Poppins SemiBold | 0 | 0,000 px | paridad exacta |
+| Lato SemiBold | **12** (`ff fi fj fk fb fh ft tf ti tt fí`) | −3,741 px (3,7 % em) | GSUB `liga`/`calt` con lookups **tipo 7 (contextuales)** |
+
+Lato **sí liga** esas secuencias en el navegador mediante lookups contextuales
+(tipo 7), que no aparecen en `getLigatures('liga')` de opentype.js (por eso
+parecen no existir) y que el motor no reproduce. Los deltas no dependen del
+contexto circundante (verificado con `x X n A`). Secuencias frecuentes en
+español: `ti` ("tienda"), `fi` ("fiesta"). **Es una diferencia de FORMA, no de
+posición**: el preview y el SVG exportado no serían el mismo texto.
+
+Consecuencia para la integración: el motor necesita **GSUB** (al menos `liga` +
+`calt` contextuales) o un **guard de fallo explícito** por texto, antes de
+ofrecer cualquier tipografía que tenga ligaduras latinas. Poppins (0
+divergencias) es segura hoy.
+
+### Alternativas técnicas para las tipografías con ligaduras/variaciones
+
+| Opción | Qué resuelve | Costo | Riesgo |
+|---|---|---|---|
+| **A. Postergar** (Poppins + Lato con guardia de fallo) | — | bajo: implementar la guardia que detecte secuencias ligables y ** rechace** el texto | el cliente pierde la fuente en textos con `ti`/`fi`; hay que explicarlo en la UI |
+| **B. Motor de shaping** (HarfBuzz WASM o `fontkit`) | GSUB completo + `gvar` | alto: dependencia nueva (~1–2 MB WASM), versión fijada, paridad real con Chromium (ambos usan HarfBuzz) | superficie de fallo nueva; reglas de fallback por idioma |
+| **C. Instanciar en build** (`fonttools varLib.instancer` a wght 700) | el eje de peso | medio: paso de build con Python (no disponible hoy) + artefacto instanciado que auditar | resuelve solo el peso; **no** el GSUB |
+| **D. Restringir el catálogo** a fuentes estáticas sin ligaturas latinas | ambos | bajo: se documenta el criterio al elegir tipografías | limita el diseño del producto |
+
+**Recomendación**: A como mínimo (guardia de fallo explícito) + C para el peso,
+y B solo si el catálogo exige fuentes con ligaduras. No integrar ninguna fuente
+variable sin C.
+
 ## Tasks
 
 - [x] T1: Diagnóstico medible del test rojo (75×65, −35°): antialiasing/rasterizador,
@@ -104,6 +170,13 @@ Separación medida entre contorno correcto y error real: media 0,0007–0,0024 m
 - [x] T7: Tests focalizados (spike 37/37), typecheck (`src/` OK, spike OK) y suite
       completa **512/512** (4,6 min, 0 fallos).
 - [x] T8: Informe final entregado.
+- [x] T9 (Fase 2): Evaluación de Dancing Script Bold → **detenida** con tres
+  bloqueos medidos (variable, GSUB contextual, kerning no soportado) + hallazgo
+  colateral en Lato (12 ligaduras contextuales no reproducidas). Alternativas y
+  costos documentados arriba. Ningún archivo de Dancing Script entra al repo.
+- [x] T10: Commit local de consolidación (`feat(spike): add Stage 4 typography
+  spike with Poppins and Lato outlines`, 51 archivos) y commit de documentación
+  de esta fase. Sin push, sin merge.
 
 **Commit de la etapa**: `feat(spike): add Stage 4 typography spike with Poppins and Lato outlines`
 (commit local en `experiment/illustration-stencil`, 51 archivos, +4178 líneas: 49 de
@@ -179,6 +252,14 @@ RFN confirmado; pendiente explícito del commit de las fuentes upstream.
 L6 T5/T6 README del spike reescrito y ejemplos+métricas preservados en el spike.
 L7 T7 verificación: spike 37/37, typecheck de `src/` y del spike OK, suite completa
 512/512 (4,6 min).
+L9 Fase 2 (Dancing Script): la fuente oficial es **variable** (`DancingScript[wght].ttf`,
+wght 400–700); el estático Bold ya no se distribuye. Chromium aplica el eje de peso
+(+3,6 % de longitud entre 400 y 700) y una sustitución GSUB contextual para `or`
+(+4,013 px = 4,0 % del em sobre 5625 pares medidos); el `kern` de la fuente usa
+`lookupFlag 8` con GDEF y el motor falla cerrado (`KERNING_UNSUPPORTED`). **No se
+implementa.** Hallazgo colateral: **Lato** (ya commiteada) tiene 12 pares ligables por
+GSUB contextual (`liga`/`calt`, lookups tipo 7) que el motor no reproduce — el preview y
+el export difieren en la FORMA del glifo, no en la posición. Poppins: 0 divergencias.
 L8 Commit local creado con el alcance pedido (spike + fuentes/licencias + pruebas +
 ejemplos + documentación ODD + dependencia `opentype.js`). La captura de
 `references/typography/` queda **fuera** del commit (sigue sin seguimiento). Se revirtió
