@@ -214,6 +214,74 @@ WASM, **0 errores** de consola/página.
 Tiempos: carga+instanciación del WASM **35,6 ms**, página lista **70 ms**,
 composición+layout **2,9–8,7 ms** por texto (51 ms la primera).
 
+## Fase 1-2 — Motor en el producto y preparación del laboratorio (2026-10-24)
+
+### Fase 0 — Respaldo: BLOQUEADO
+
+`git push origin experiment/illustration-stencil` **no se pudo ejecutar**: el
+entorno no tiene credenciales (`could not read Username for 'https://github.com'`,
+sin credential helper, sin `gh`, sin token en el entorno). Los 4 commits
+siguen seguros en la rama local; el push queda pendiente de que el usuario lo
+ejecute. No se hubo de divergencia: `origin` estaba 4 commits por detrás
+(fast-forward limpio).
+
+### Fase 1 — `src/typography/` (motor puro, sin efecto visible)
+
+Motor compartido, portado del spike validado: `harfbuzz.ts` (shaper),
+`curved.ts` (geometría y serialización), `fonts.ts` (catálogo), `index.ts`
+(API). El shaper y la geometría son los **mismos** que el spike (sin reescribir
+el layout curvo ni la serialización).
+
+- `harfbuzzjs@1.6.4` pasa a **dependencia de runtime** (lock: +1/−2).
+- `vite.config.ts` (nuevo, raíz): plugin `harfbuzz-assets` que sirve el WASM en
+  dev y lo emite como asset en build, más `optimizeDeps.exclude`. El **bundle
+  inicial no cambia** (357 603 B, idéntico) y **no menciona harfbuzz** → el WASM
+  queda fuera del bundle inicial ✓.
+- Las fuentes se sirven desde `public/typography/` (con su OFL y su
+  `PROVENANCE.md`): importarlas como módulos hace que Vite intente transformarlas
+  y un `.ttf` no es JavaScript.
+- `src/typography/README.md` documenta el módulo.
+
+Pruebas nuevas: `tests/typography.spec.ts` (5) — carga diferida del WASM, los 11
+pares GSUB de Lato contra el navegador, **texto curvo idéntico al navegador en
+85/50, 80/60 y 75/65 × normal/invertido/rotado × las 3 fuentes** (18
+comparaciones), fallos explícitos y determinismo. Todas verdes con los umbrales
+originales sin relajar.
+
+Fallos encontrados y corregidos (todos de test o de tipos, ninguno del motor):
+el literal "no NFC" estaba precompuesto; la conversión mm→px del avance; el
+`scenario` no mapeaba `outerDiameterMm`; los paths en mm necesitaban el
+escalado ×24 en el SVG de comparación; `face.upem` es propiedad; `Blob`/`Face`
+debían stay alive; `HarfBuzzModule["Font"]` es el constructor y no la instancia.
+
+### Fase 2 — Laboratorio: preparado y AISLADO (uso real sigue deshabilitado)
+
+- `src/production-lab/typographyOutlines.ts` (nuevo): adaptador que convierte un
+  texto del laboratorio en contornos vectoriales usando **exactamente** las
+  medidas que el laboratorio ya calcula (fontSizeMm, letterSpacingMm,
+  baselineRadiusMm, ángulo, dy). **No está conectado al exportador**: el gate
+  `FONT_OUTLINES_UNAVAILABLE` sigue vigente. El mapeo de familia es explícito
+  (`catalogueFontForFamily`): Georgia/Arial → `null` (nunca sustitución).
+- `tests/production-lab-typography-parity.spec.ts` (nuevo, 4 tests): demuestra que
+  con la misma fuente, la misma configuración tipográfica y la misma geometría,
+  la vista previa del laboratorio y los contornos vectoriales coinciden
+  (desviación ≤ 0,2 mm, media ≤ 0,05 mm, sin píxeles huérfanos) en las 3
+  fuentes del catálogo.
+
+### BLOQUEO DE LA FASE 2 (pide autorización)
+
+La paridad **para los trabajos reales** exige que la vista previa use una fuente
+**empaquetada**, y hoy la vista previa del laboratorio (PhysicalComposition.tsx)
+pinta el texto con `source.fontFamily`: las fuentes del editor (Georgia, Arial,
+Times New Roman, Trebuchet MS, Verdana), **propietarias y no redistribuibles**.
+Un SVG con contornos vectoriales nunca podrá ser idéntico a esa vista previa.
+
+→ Habilitar textos reales requiere **cambiar la lista de tipografías visibles
+del personalizador** al catálogo empaquetado. Eso está explícitamente diferido
+("No modificar todavía las tipografías visibles del personalizador") y afecta al
+editor, a los snapshots y a los trabajos guardados. **Se detiene aquí** y se
+solicita autorización.
+
 ## Tasks
 
 - [x] T1: Diagnóstico medible del test rojo (75×65, −35°): antialiasing/rasterizador,
@@ -235,6 +303,13 @@ composición+layout **2,9–8,7 ms** por texto (51 ms la primera).
 - [x] T11 (HarfBuzz): shaper + layout curvo reutilizando el núcleo, harness
   aislado con carga de WASM resuelta (dev y build), 13 tests nuevos (10 de
   paridad + 3 de texto curvo) más 1 de build, todos verdes.
+- [x] T14: Motor compartido en `src/typography/` (shaper + geometría + catálogo,
+  carga diferida, WASM fuera del bundle inicial) con 5 tests de regresión.
+- [x] T15: Adaptador aislado del laboratorio (`typographyOutlines.ts`, sin tocar
+  el exportador) + 4 tests de paridad vista previa/contornos.
+- [ ] T16: **BLOQUEADO — pide autorización**: habilitar textos reales exige que
+  el personalizador ofrezca el catálogo empaquetado (las fuentes del editor son
+  propietarias) → afecta editor, snapshots y trabajos guardados.
 - [x] T12: Procedencia de Dancing Script (`PROVENANCE.md`: SHA-256 verificado
   contra la distribución oficial, OFL, RFN "Dancing Script", eje `wght`).
 - [x] T13: Documentación del spike actualizada (README: motor HarfBuzz,

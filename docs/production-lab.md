@@ -399,3 +399,30 @@ el snapshot guardado (única llamada: `get`).
   texto + fuentes almacenadas) como clave de remontaje y de cierre de
   completitud; el avance por texto se escala a mm con `textMetrics` y
   su procedencia declarada (avance medido, nunca caja de tinta).
+
+## Motor tipográfico vectorial (Etapa 4) — preparado, NO habilitado
+
+`src/typography/` convierte texto curvo en contornos SVG reales en milímetros
+(HarfBuzz para GSUB/GPOS/ejes variables, geometría compartida con el spike
+validado). Ver `src/typography/README.md`.
+
+Estado en el laboratorio:
+
+- El **adaptador** `src/production-lab/typographyOutlines.ts` usa exactamente las
+  medidas que el laboratorio ya calcula (fontSizeMm, letterSpacingMm,
+  baselineRadiusMm, ángulo, dy de invertido) y está **aislado**: no está
+  conectado al exportador.
+- El gate **`FONT_OUTLINES_UNAVAILABLE` sigue vigente** para el uso real: las
+  composiciones con texto NO se exportan.
+- `tests/production-lab-typography-parity.spec.ts` demuestra que, con la misma
+  fuente, la misma configuración tipográfica y la misma geometría, la vista
+  previa y los contornos vectoriales coinciden (desviación ≤ 0,2 mm).
+
+**Por qué no se habilita todavía**: la vista previa del laboratorio pinta el
+texto con `source.fontFamily`, las fuentes del EDITOR (Georgia, Arial, Times
+New Roman, Trebuchet MS, Verdana), que son propietarias y no se pueden
+empaquetar: un SVG con contornos vectoriales nunca puede ser idéntico a esa
+vista previa. Habilitarlo exige que el personalizador ofrezca el catálogo
+empaquetado (Poppins, Lato, Dancing Script), lo que cambia la lista de
+tipografías visibles, los snapshots y los trabajos guardados. Queda pendiente de
+autorización del usuario (ver `odd/tasks/stage4-typography.md`, T16).
