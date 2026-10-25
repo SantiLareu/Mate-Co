@@ -1,0 +1,40 @@
+/*
+ * Catálogo tipográfico del personalizador (Etapa 4).
+ *
+ * Estas son las ÚNICAS fuentes con las que se puede diseñar: tres binarios OFL
+ * empaquetados (public/typography/), servidos tal cual por el build.
+ *
+ * - No hay ninguna fuente del sistema en el catálogo: si un binario no llegara
+ *   a cargarse, el texto NO se dibuja con otra tipografía (font-display: block
+ *   lo deja invisible hasta que la fuente real esté disponible) en lugar de
+ *   sustituirla en silencio.
+ * - Los pesos coinciden con los que usa el editor (600) y con los que compone
+ *   el motor vectorial (src/typography).
+ * - Las rutas y la versión (?v1) coinciden con src/typography/fonts.ts; hay un
+ *   test que verifica que ambas piezas no se separan.
+ */
+
+@font-face {
+  font-family: "Poppins SemiBold";
+  src: url("/typography/poppins/Poppins-SemiBold.ttf?v1") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Lato SemiBold";
+  src: url("/typography/lato/Lato-SemiBold.ttf?v1") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Dancing Script es variable: el peso 600 se interpola en el rango 400-700. */
+@font-face {
+  font-family: "Dancing Script";
+  src: url("/typography/dancingscript/DancingScript-wght.ttf?v1") format("truetype");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: block;
+}

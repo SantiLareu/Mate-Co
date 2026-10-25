@@ -10,15 +10,16 @@
  *     sigue vigente para el uso real. Este módulo existe para demostrar la
  *     paridad de geometría y dejar preparada la integración cuando se autorice.
  *
- * LA PARIDAD Y SU LÍMITE (documentado, no oculto)
+ * LA PARIDAD (y su condición)
  *   La vista previa del laboratorio (PhysicalComposition.tsx) pinta el texto con
- *   `source.fontFamily`: las fuentes del EDITOR (Georgia, Arial, Times New Roman,
- *   Trebuchet MS, Verdana), que son propietarias y no se pueden empaquetar. Un
- *   SVG exportado con contornos vectoriales NUNCA puede ser idéntico a esa
- *   vista previa mientras use esas fuentes.
- *   Por eso aquí el mapeo de familia es EXPRESO: si la familia pedida no está
- *   en el catálogo empaquetado, se devuelve `null` y quien llama decide. No hay
- *   sustitución silenciosa.
+ *   `source.fontFamily`, y desde la Etapa 4 el catálogo del personalizador ES el
+ *   catálogo empaquetado: las dos superficies usan la misma fuente real, el
+ *   mismo peso (600) y la misma geometría (letter-spacing, radio base, ángulo y
+ *   dy). Eso es lo que hace posible que el SVG exportado coincida con la vista
+ *   previa (ver tests/production-lab-typography-parity.spec.ts).
+ *   El mapeo de familia sigue siendo EXPRESO: si una familia no está en el
+ *   catálogo (por ejemplo un trabajo antiguo con una fuente del sistema), se
+ *   devuelve `null` y quien llama decide. No hay sustitución silenciosa.
  */
 import {
   renderCurvedText,

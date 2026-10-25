@@ -3,6 +3,7 @@ import type { TextElement } from "./CurvedText";
 import type { DesignIcon } from "./IconElement";
 import type { UploadedGraphicElement } from "./UploadedGraphic";
 import type { ApprovedDesignInstance } from "../approved-designs/approvedDesign";
+import { TYPOGRAPHY_FONT_LIST } from "../typography";
 
 type Props = {
   selected: TextElement | null;
@@ -28,13 +29,12 @@ type Props = {
   onContinue: () => void;
 };
 
-const fonts = [
-  "Georgia",
-  "Arial",
-  "Times New Roman",
-  "Trebuchet MS",
-  "Verdana",
-];
+/**
+ * Catálogo del selector: exactamente las tres fuentes empaquetadas (Etapa 4).
+ * Viene del mismo módulo que usa el motor vectorial, así que el editor y el
+ * exportador no pueden divergir en el nombre ni en el peso.
+ */
+const fonts = TYPOGRAPHY_FONT_LIST.map((font) => font.family);
 
 export default function DesignPanel({
   selected,

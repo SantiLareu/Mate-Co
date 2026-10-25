@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles/app.css";
 import "./styles/admin-lab.css";
+// Catálogo tipográfico: las tres fuentes OFL empaquetadas (Etapa 4).
+import "./styles/typography.css";
 
 // L10: las rutas de laboratorio se cargan perezosas; el enrutado por
 // pathname se preserva tal cual (sin editor ni importador afectados).

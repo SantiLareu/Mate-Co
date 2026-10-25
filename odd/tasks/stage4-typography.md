@@ -282,6 +282,65 @@ del personalizador** al catálogo empaquetado. Eso está explícitamente diferid
 editor, a los snapshots y a los trabajos guardados. **Se detiene aquí** y se
 solicita autorización.
 
+## Fase 3 — Catálogo de tipografías en el personalizador (2026-10-24)
+
+**Decisión del usuario**: el personalizador pasa de las cinco tipografías del
+sistema (Georgia, Arial, Times New Roman, Trebuchet MS, Verdana) a las tres
+empaquetadas: **Poppins SemiBold (600), Lato SemiBold (600), Dancing Script
+(600)**. No hay diseños reales de clientes que preservar ni que migrar, así que
+no se ha construido infraestructura de compatibilidad con las fuentes anteriores.
+
+### Superficies auditadas
+
+| Superficie | Archivo | Cambio |
+|---|---|---|
+| Selector | `src/components/DesignPanel.tsx` | La lista pasa a derivarse del catálogo del motor (`TYPOGRAPHY_FONT_LIST`) → el editor y el motor no pueden divergir |
+| Editor (texto curvo) | `src/components/CurvedText.tsx` | Sin cambios: ya pinta con `element.fontFamily`; ahora esa familia es una fuente real |
+| Vista previa del trabajo | `src/components/JobSnapshotPreview.tsx` | Sin cambios (misma fuente) |
+| Laboratorio físico | `src/production-lab/PhysicalComposition.tsx` | Sin cambios (misma fuente) |
+| Confirmación | `src/components/ConfirmPanel.tsx` | Sin cambios |
+| Demo del laboratorio | `src/production-lab/fixture.ts` | Los dos textos de la demo pasan a la fuente del catálogo |
+| Export del producto (raster) | `src/export/textOutlines.ts` | **Sin sustitución silenciosa**: se quita la familia de reserva del sistema y se espera a la fuente real antes de medir |
+| Gate del exportador físico | `src/production-lab/exportTextOutlines.ts` | Código intacto (`FONT_OUTLINES_UNAVAILABLE`); la evidencia pasa a reflejar que el bloqueo ya es deliberado, no técnico |
+| Jobs y snapshots | `src/jobs/snapshot.ts` | Sin cambios: guardan la familia elegida |
+
+### Cambios
+
+- `src/styles/typography.css` (nuevo): `@font-face` de las tres fuentes con
+  `font-display: block` (sin familia de reserva del sistema) e importado desde
+  `main.tsx`.
+- `src/components/DesignPanel.tsx`: el selector ofrece el catálogo del motor.
+- `src/App.tsx`: el texto nuevo nace con la primera familia del catálogo.
+- `src/production-lab/fixture.ts`: la demo usa una fuente del catálogo.
+- `src/export/textOutlines.ts`: sin fallback del sistema; espera a la fuente real.
+- `src/production-lab/exportTextOutlines.ts`: evidencia del gate actualizada
+  (código intacto).
+- `tests/typography-catalogue.spec.ts` (nuevo, 9 tests): el catálogo son las
+  tres fuentes aprobadas con peso 600; ninguna fuente del sistema en el
+  catálogo ni en las `@font-face`; el CSS y el motor apuntan a los mismos
+  binarios; el selector ofrece sólo el catálogo; las tres fuentes reales están
+  cargadas en el navegador; el editor pinta con la fuente real; el editor y el
+  laboratorio coinciden en la familia; editor y laboratorio tienen la misma
+  geometría relativa (avance normalizado idéntico dentro del 0,1 %, la
+  cuantización del navegador es 1/64 px); el entorno de prueba es móvil
+  (390×844, táctil).
+
+### Verificación
+
+| Corrida | Resultado |
+|---|---|
+| Focalizadas (catálogo, motor, paridad, manipulación, confirmación, laboratorio, export) | **161/161** (2,2 min) |
+| Typecheck | OK |
+| Build del producto | OK (1,38 s): las `@font-face` y las tres fuentes están en el `dist` |
+| Regresión completa | ver resultados finales |
+
+### Lo que NO se ha tocado
+
+El exportador físico y el gate `FONT_OUTLINES_UNAVAILABLE` siguen intactos: la
+exportación con texto real es la siguiente tarea. Tampoco se modificaron el
+administrador, el almacenamiento de trabajos ni otras funcionalidades del
+personalizador, y no se añadieron dependencias.
+
 ## Tasks
 
 - [x] T1: Diagnóstico medible del test rojo (75×65, −35°): antialiasing/rasterizador,
@@ -307,9 +366,13 @@ solicita autorización.
   carga diferida, WASM fuera del bundle inicial) con 5 tests de regresión.
 - [x] T15: Adaptador aislado del laboratorio (`typographyOutlines.ts`, sin tocar
   el exportador) + 4 tests de paridad vista previa/contornos.
-- [ ] T16: **BLOQUEADO — pide autorización**: habilitar textos reales exige que
-  el personalizador ofrezca el catálogo empaquetado (las fuentes del editor son
-  propietarias) → afecta editor, snapshots y trabajos guardados.
+- [x] T16: Catálogo del personalizador = las tres fuentes empaquetadas
+  (decisión del usuario). El bloqueo de paridad queda RESUELTO: editor,
+  vista previa, laboratorio y confirmación pintan la misma fuente real.
+- [x] T17: Superficies auditadas y ajustadas (selector, default de texto
+  nuevo, demo del laboratorio, ruta de raster sin fallback del sistema, gate
+  con evidencia actualizada) + 9 tests de catálogo y 161/161 en las
+  focalizadas.
 - [x] T12: Procedencia de Dancing Script (`PROVENANCE.md`: SHA-256 verificado
   contra la distribución oficial, OFL, RFN "Dancing Script", eje `wght`).
 - [x] T13: Documentación del spike actualizada (README: motor HarfBuzz,

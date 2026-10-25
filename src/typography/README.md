@@ -54,6 +54,21 @@ el navegador en las mismas condiciones del reporte de la Etapa 4: avance ≤ 1 %
 posición ≤ 0,2 mm, rotación ≤ 0,5°, desviación de tinta ≤ 0,2 mm y el avance
 dentro de la cuantización del propio navegador (1/64 px).
 
+## Catálogo y personalizador
+
+Desde la Etapa 4 este catálogo **es** el catálogo del personalizador: el
+selector (`src/components/DesignPanel.tsx`) ofrece estas tres familias y
+`src/styles/typography.css` declara las `@font-face` con los mismos binarios
+(las rutas y la versión `?v1` coinciden; lo verifica
+`tests/typography-catalogue.spec.ts`). Consecuencia: el editor, la vista previa
+del trabajo, el laboratorio y la confirmación pintan la misma fuente real, con
+el mismo peso (600) y la misma geometría, y el motor vectorial compone sobre
+esa misma fuente.
+
+No hay ninguna fuente del sistema en el catálogo: si un binario no llegara a
+cargarse, `font-display: block` deja el texto invisible en vez de dibujarlo
+con otra tipografía.
+
 ## Pendiente
 
 El motor **no está conectado al exportador**: el gate

@@ -25,11 +25,11 @@ export function createProductionLabFixture(
 ): ProductionLabFixture {
   const texts: TextElement[] = [
     {
-      id: 'lab-text-top', text: 'Mate&Co', fontFamily: 'Georgia',
+      id: 'lab-text-top', text: 'Mate&Co', fontFamily: 'Poppins SemiBold',
       angle: 0, radius: 374, inverted: false,
     },
     {
-      id: 'lab-text-bottom', text: 'Edición física', fontFamily: 'Georgia',
+      id: 'lab-text-bottom', text: 'Edición física', fontFamily: 'Poppins SemiBold',
       angle: 180, radius: 340, inverted: true, scale: 0.9,
     },
   ];

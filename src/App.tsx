@@ -11,6 +11,7 @@ import {
   clampTextScale,
 } from "./components/CurvedText";
 import IconDrawer from "./components/IconDrawer";
+import { TYPOGRAPHY_FONT_LIST } from "./typography";
 import ApprovedDesignDrawer from "./components/ApprovedDesignDrawer";
 import type { RenderableDesign } from "./admin-lab/types";
 import {
@@ -291,7 +292,7 @@ export default function App() {
   const createText = (): TextElement => ({
     id: crypto.randomUUID(),
     text: "Tu texto",
-    fontFamily: "Georgia",
+    fontFamily: TYPOGRAPHY_FONT_LIST[0].family,
     angle: 0,
     radius: TEXT_RADIUS.initial,
     inverted: false,

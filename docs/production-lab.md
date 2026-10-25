@@ -418,11 +418,17 @@ Estado en el laboratorio:
   fuente, la misma configuración tipográfica y la misma geometría, la vista
   previa y los contornos vectoriales coinciden (desviación ≤ 0,2 mm).
 
-**Por qué no se habilita todavía**: la vista previa del laboratorio pinta el
-texto con `source.fontFamily`, las fuentes del EDITOR (Georgia, Arial, Times
-New Roman, Trebuchet MS, Verdana), que son propietarias y no se pueden
-empaquetar: un SVG con contornos vectoriales nunca puede ser idéntico a esa
-vista previa. Habilitarlo exige que el personalizador ofrezca el catálogo
-empaquetado (Poppins, Lato, Dancing Script), lo que cambia la lista de
-tipografías visibles, los snapshots y los trabajos guardados. Queda pendiente de
-autorización del usuario (ver `odd/tasks/stage4-typography.md`, T16).
+**Estado de la fuente**: desde la Etapa 4 el catálogo del personalizador ES el
+catálogo empaquetado (Poppins SemiBold, Lato SemiBold, Dancing Script, peso
+600), con `@font-face` en `src/styles/typography.css`. La vista previa del
+laboratorio y el editor pintan, por tanto, la MISMA fuente real, con el mismo
+peso y la misma geometría: eso es lo que hace posible que el SVG exportado
+coincida con la vista previa (lo verifica
+`tests/production-lab-typography-parity.spec.ts`).
+
+**Por qué no se habilita todavía**: la habilitación de la exportación con texto
+es un paso posterior (Etapa 4, siguiente tarea). El bloqueo
+`FONT_OUTLINES_UNAVAILABLE` se mantiene de forma deliberada y explícita hasta
+entonces; la evidencia del bloqueo (`LAB_FONT_BLOCK_EVIDENCE`) refleja ya el
+estado actual: el motor y las fuentes existen, lo que falta es la activación
+del camino de export.

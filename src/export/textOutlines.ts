@@ -31,6 +31,24 @@ const RENDER_SCALE = 3;
 const wrapAngle = (degrees: number) => ((degrees + 540) % 360) - 180;
 
 /**
+ * Espera a que la fuente real del catálogo esté disponible.
+ *
+ * Sin esto, el canvas mediría con la fuente por defecto del navegador y el
+ * trazado de texto se haría con una tipografía distinta de la que se ve en el
+ * editor (sustitución silenciosa, justo lo que la Etapa 4 prohíbe).
+ */
+async function ensureFontLoaded(family: string): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  if (document.fonts.check(`600 16px "${family}"`)) return;
+  try {
+    await document.fonts.load(`600 16px "${family}"`);
+    await document.fonts.ready;
+  } catch {
+    // La fuente no se pudo cargar: el llamante decide (sin sustituto).
+  }
+}
+
+/**
  * Renders one curved text offscreen from state (same arc, font size, spacing
  * and dy as the editor), thresholds it and traces real glyph outlines with
  * the existing VTracer. The result is genuine path geometry shaped by the
@@ -49,7 +67,12 @@ export async function traceTextElement(request: TextTraceRequest): Promise<TextT
   const measurer = document.createElement('canvas').getContext('2d');
   let estimatedLength = 150;
   if (measurer) {
-    measurer.font = `600 ${fontSize}px "${request.fontFamily}", sans-serif`;
+    // SIN familia de reserva del sistema: si la fuente del catálogo no está
+    // cargada, el canvas usaría la tipografía por defecto del navegador y el
+    // trazado sería de OTRA fuente (sustitución silenciosa). Se mide con la
+    // fuente exacta o no se dibuja nada.
+    await ensureFontLoaded(request.fontFamily);
+    measurer.font = `600 ${fontSize}px "${request.fontFamily}"`;
     estimatedLength = measurer.measureText(request.text).width + letterSpacing * request.text.length;
   }
   const estimatedHalfSpan = Math.min(135, Math.max(7, (estimatedLength / 2 + 14) / radius * 180 / Math.PI)) + 18;
