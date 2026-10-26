@@ -359,6 +359,8 @@ export type LabExportMeta = {
   outerDiameterMm: number;
   innerDiameterMm: number;
   strategy: SizingStrategy;
+  /** Versión del motor de contornos usada (si hubo texto). */
+  shaperVersion?: string;
   /** Frame sizeFactor (mm per source unit) the export was scaled with. */
   sizeFactor: number;
   fileName: string;
@@ -374,9 +376,35 @@ export type LabExportResult =
  * caller supplies the embedded defs (E2 wires iconById there). A placed
  * icon with no entry fails closed as UNSUPPORTED_ASSET_FEATURE.
  */
+/**
+ * Contornos de un texto ya calculados por el motor vectorial
+ * (src/typography): paths en milímetros absolutos, centrados en el origen.
+ */
+export type LabTextOutline = {
+  /** Un path por glifo, en mm absolutos (origen en el centro de la virola). */
+  paths: readonly string[];
+  /** Versión del motor que produjo los contornos (reproducibilidad). */
+  shaperVersion: string;
+  /**
+   * Avance total del texto en el arco, mm (el mismo que usaron los
+   * contornos): permite derivar el span de la banda a partir de la MISMA
+   * fuente que se graba, en lugar de una medición aparte.
+   */
+  advanceMm: number;
+};
+
 export type BuildLabPhysicalSvgInput = {
   report: PhysicalReport;
   iconPaths: Record<string, readonly string[]>;
+  /**
+   * Contornos ya calculados: id del texto colocado -> sus contornos.
+   *
+   * El motor vectorial es ASÍNCRONO (WASM) y el serializador sigue siendo
+   * SÍNCRONO: la UI prepara los contornos y se los pasa aquí como datos ya
+   * resueltos. Si hay textos y falta alguna entrada, la exportación se
+   * bloquea con un código explícito (nunca un archivo aparentemente válido).
+   */
+  textOutlines?: Record<string, LabTextOutline>;
   assetFlags?: LabExportAssetFlags;
   /**
    * E3 job-graphics scope gate (Stage 3 S6, J3 disclosure): number of

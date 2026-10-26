@@ -26,6 +26,8 @@ import {
   type TypographyFontId,
   TYPOGRAPHY_FONTS,
 } from "../typography";
+import type { LabTextOutline, PhysicalReport } from "./types";
+import type { TextElement } from "../components/CurvedText";
 
 /** Familias del catálogo empaquetado, por nombre visible. */
 const FAMILY_TO_ID = new Map<string, TypographyFontId>(
@@ -119,4 +121,66 @@ export async function labTextOutlines(
     totalAdvanceMm: result.totalAdvanceMm,
     shaperVersion: result.shaperVersion,
   };
+}
+
+/**
+ * Prepara los contornos vectoriales de TODOS los textos del reporte.
+ *
+ * Es el punto asíncrono de la cadena: el motor (WASM) tarda, el serializador
+ * del exportador es síncrono. La UI llama a esta función y le pasa el
+ * resultado como datos.
+ *
+ * Falla cerrado (nunca sustituye): si un texto no está en el catálogo, no
+ * tiene glifo o no está en NFC, se devuelve el motivo y la exportación queda
+ * bloqueada.
+ */
+export async function prepareLabTextOutlines(
+  report: PhysicalReport,
+  sourceTexts: readonly TextElement[],
+): Promise<
+  | { ok: true; outlines: Record<string, LabTextOutline> }
+  | { ok: false; reason: string }
+> {
+  const outlines: Record<string, LabTextOutline> = {};
+  for (const placed of report.texts) {
+    const element = sourceTexts.find((entry) => entry.id === placed.id);
+    if (!element) {
+      return {
+        ok: false,
+        reason: `No se encontró el texto de origen «${placed.id}»: no se inventa su contenido.`,
+      };
+    }
+    const fontId = catalogueFontForFamily(element.fontFamily);
+    if (!fontId) {
+      return {
+        ok: false,
+        reason: `La tipografía «${element.fontFamily}» no está en el catálogo empaquetado: no se sustituye por otra.`,
+      };
+    }
+    if (placed.baselineRadiusMm === null) {
+      return {
+        ok: false,
+        reason:
+          placed.baselineIssue ??
+          `El radio base del texto «${placed.id}» no es positivo: sin geometría no hay contornos.`,
+      };
+    }
+    const result = await labTextOutlines(element.text, fontId, {
+      fontSizeMm: placed.fontSizeMm,
+      letterSpacingMm: placed.letterSpacingMm,
+      baselineRadiusMm: placed.baselineRadiusMm,
+      angle: placed.angle,
+      inverted: placed.sweep === 0,
+      invertedDyMm: placed.invertedDyMm ?? 0,
+    });
+    if (!result.ok) {
+      return { ok: false, reason: `Texto «${placed.id}»: ${result.reason}` };
+    }
+    outlines[placed.id] = {
+      paths: result.paths.map((p) => p.d),
+      shaperVersion: result.shaperVersion,
+      advanceMm: result.totalAdvanceMm,
+    };
+  }
+  return { ok: true, outlines };
 }

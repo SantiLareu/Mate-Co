@@ -400,6 +400,30 @@ el snapshot guardado (única llamada: `get`).
   completitud; el avance por texto se escala a mm con `textMetrics` y
   su procedencia declarada (avance medido, nunca caja de tinta).
 
+## Exportación con texto vectorial (Etapa 4) — HABILITADA (experimental)
+
+El laboratorio exporta los textos como **contornos SVG reales**, calculados con
+el motor de `src/typography` (HarfBuzz). Sigue siendo **experimental** y
+**pendiente de validación con el grabador real**.
+
+- El motor es asíncrono (WASM) y el serializador del exportador es **síncrono**:
+  la UI prepara los contornos (`prepareLabTextOutlines`) y se los pasa como datos
+  ya resueltos (`BuildLabPhysicalSvgInput.textOutlines`). La firma del
+  serializador no cambia.
+- Los contornos entran en el grupo de grabado (`lab-engraving`) como paths en
+  milímetros; los aros de referencia siguen en su propio grupo
+  (`lab-ring-reference`). El archivo no lleva `<text>`, ni raster, ni fuentes, ni
+  referencias externas.
+- **Fallo explícito**: si un texto no está en el catálogo, no tiene glifo o no
+  está en NFC, la preparación falla y la exportación se bloquea con
+  `FONT_OUTLINES_UNAVAILABLE` (nunca un archivo incompleto). Lo mismo si falta
+  el span medido de un texto (`TEXT_SPAN_UNMEASURED`), porque la línea no
+  podría interrumpirse en su hueco.
+- Fidelidad verificada contra el navegador (referencia en píxeles de dispositivo,
+  desviación física tinta-tinta): ≤ 0,2 mm de desviación máxima y ≤ 0,05 mm de
+  media, en 18 combinaciones (3 fuentes × 3 virolas × normal/invertido/rotado)
+  y en el diseño real del demo.
+
 ## Motor tipográfico vectorial (Etapa 4) — preparado, NO habilitado
 
 `src/typography/` convierte texto curvo en contornos SVG reales en milímetros

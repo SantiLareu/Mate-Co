@@ -182,6 +182,17 @@ test("E1 fonts-block-gate: any text fails closed with evidence", () => {
   expect(result.code).toBe("FONT_OUTLINES_UNAVAILABLE");
   expect(result.reason.length).toBeGreaterThan(50);
   expect(result.reason).toMatch(/Bloqueo/);
+  // Etapa 4: el bloqueo sigue si los contornos no están calculados, y también
+  // si faltan los de algún texto concreto (nunca un archivo incompleto).
+  const partial = buildLabPhysicalSvg({
+    report,
+    iconPaths: {},
+    textOutlines: { "otro-texto": { paths: [], shaperVersion: "15.0.0", advanceMm: 0 } },
+  });
+  expect(partial.ok).toBe(false);
+  if (partial.ok) throw new Error("export passed with missing outlines");
+  expect(partial.code).toBe("FONT_OUTLINES_UNAVAILABLE");
+  expect(partial.reason).toMatch(/text-e1/);
 });
 
 test("E1 asset flags fail closed with exact codes", () => {
@@ -798,7 +809,7 @@ function e2DanglingRefs(svg: string): string[] {
   return [...missing];
 }
 
-test("E2 demo text gate: export disabled with exact FONT_OUTLINES_UNAVAILABLE", async ({
+test("E2 demo con texto: export habilitado con contornos vectoriales (Etapa 4)", async ({
   page,
 }) => {
   await e2GotoLab(page);
@@ -806,9 +817,12 @@ test("E2 demo text gate: export disabled with exact FONT_OUTLINES_UNAVAILABLE", 
   await expect(page.getByTestId("lab-physical-svg")).toBeVisible();
   const section = page.getByTestId("lab-export-section");
   await expect(section).toBeVisible();
-  await expect(page.getByTestId("lab-export-button")).toBeDisabled();
-  // Exact blocker code visible (demo fixture carries texts by design).
-  await expect(page.getByTestId("lab-export-status")).toContainText(
+  // Etapa 4: los textos del demo se exportan con sus contornos vectoriales
+  // reales; el botón se habilita cuando el motor los ha calculado.
+  await expect(page.getByTestId("lab-export-button")).toBeEnabled({
+    timeout: 20000,
+  });
+  await expect(page.getByTestId("lab-export-status")).not.toContainText(
     "FONT_OUTLINES_UNAVAILABLE",
   );
   // Experimental label, never an apt-for-engraving mark.

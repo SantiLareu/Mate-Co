@@ -1,9 +1,14 @@
 # Continuación — Etapa 4 (tipografías vectoriales)
 
-**Estado al apagar el equipo (2026-10-24).** Documento de traspaso: retomar
-exactamente desde aquí. **No hay trabajo a medias en el código**: la única
-tarea deliberadamente pendiente es la habilitación de la exportación con texto
-(que es la siguiente tarea y requiere autorización).
+**Estado tras la Fase 4 (2026-10-24).** Documento de traspaso: retomar
+exactamente desde aquí. La exportación del laboratorio con **texto vectorial**
+ya está habilitada (experimental); lo que queda es la siguiente fase, que
+requiere autorización.
+
+> **Actualización (Fase 4)**: el laboratorio ya exporta los textos como
+> contornos SVG reales (motor HarfBuzz). El gate `FONT_OUTLINES_UNAVAILABLE`
+> pasa a significar "el texto no tiene contornos calculados", no "hay texto".
+> Ver §2.4 y `odd/tasks/stage4-typography.md` (Fase 4).
 
 ## 1. Git
 
@@ -85,6 +90,27 @@ El commit es local: **no hacer push ni merge sin autorización**.
   (`LAB_FONT_BLOCK_EVIDENCE`) refleja que el bloqueo ya es deliberado, no técnico.
 - Jobs, snapshots, admin y el resto del personalizador: **sin cambios**.
 
+### 2.4 Exportación con texto vectorial (Fase 4, sin commitear)
+
+- `src/production-lab/types.ts`: `LabTextOutline` (paths + `shaperVersion` +
+  `advanceMm`) y `textOutlines` en el input del serializador.
+- `src/production-lab/exportTextOutlines.ts`: el gate exige contornos
+  preparados.
+- `src/production-lab/exportSvg.ts`: `textMarkup` + inserción en el grupo de
+  grabado; gate 1 con contornos; gate 4 revisada (las bandas legítimas
+  interrumpen la línea).
+- `src/production-lab/typographyOutlines.ts`: `prepareLabTextOutlines`
+  (asíncrono, fallo explícito).
+- `src/production-lab/ProductionLab.tsx`: estado + efecto de preparación con
+  **clave estable** (depender de la identidad del reporte provocaba un bucle de
+  render: "Maximum update depth exceeded").
+- `tests/production-lab-text-export.spec.ts` (nuevo, 6 tests) y el gate del
+  export spec actualizado.
+
+Contrato: el motor es asíncrono, el serializador sigue **síncrono** y recibe los
+contornos como datos ya resueltos (`textOutlines`). La firma del serializador no
+cambió.
+
 ## 3. Pruebas ejecutadas (todas verdes)
 
 | Corrida | Resultado |
@@ -142,6 +168,10 @@ test que lo comprueba.
   puerto 4175. Comprobar y cerrar (`netstat`/`taskkill`).
 
 ## 6. Próximos pasos (en orden)
+
+0. **Fase 4 hecha y verificada**: la exportación del laboratorio con texto
+   vectorial funciona (fidelidad ≤ 0,2 mm; determinismo byte a byte; fallos
+   explícitos). Falta commitearla (sin push) y revisar el resultado.
 
 1. ~~**Revisar y commitear la Fase 3** (catálogo)~~ → **hecho**: commit local
    con `git add` de rutas explícitas (nunca `git add .`); `references/typography/`

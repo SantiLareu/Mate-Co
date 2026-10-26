@@ -78,6 +78,8 @@ import type {
   PlacedApproved,
   PlacedCircularLine,
   PlacedIcon,
+  LabTextOutline,
+  PlacedText,
 } from "./types";
 import { checkLabTextsBlocked } from "./exportTextOutlines";
 import { lineEngravingSegments, splitLineKnockouts } from "./exportKnockouts";
@@ -93,6 +95,9 @@ export const LAB_ENGRAVING_STROKE = "#000000";
 /** Icon paint model, PhysicalIcon-exact. */
 export const LAB_ICON_STROKE = "#171717";
 export const LAB_ICON_STROKE_WIDTH = 1.7;
+
+/** Relleno de los contornos de texto (tinta sólida, sin trazo). */
+export const LAB_TEXT_FILL = "#000000";
 
 const isFiniteNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value);
@@ -190,6 +195,29 @@ function iconMarkup(
     `<g transform="scale(1.4) translate(-16 -16)" fill="none" stroke="${LAB_ICON_STROKE}" stroke-width="${String(LAB_ICON_STROKE_WIDTH)}" stroke-linecap="round" stroke-linejoin="round">` +
     art +
     `</g></g></g>`
+  );
+}
+
+/**
+ * Texto como contornos vectoriales reales.
+ *
+ * Los paths llegan ya calculados por el motor (src/typography) en milímetros
+ * absolutos centrados en el origen: el grupo de grabado está en coordenadas con
+ * el origen en la esquina superior izquierda, de ahí la traslación al centro.
+ * El relleno es negro (son contornos rellenos, no trazos) y no se incluye
+ * ningún <text>, fuente ni referencia externa.
+ */
+function textMarkup(
+  placed: PlacedText,
+  outline: LabTextOutline,
+  half: number,
+): string {
+  const art = outline.paths
+    .map((d) => `<path d="${escapeXmlAttr(d)}"/>`)
+    .join("");
+  return (
+    `<g data-text-id="${escapeXmlAttr(placed.id)}" fill="${LAB_TEXT_FILL}" ` +
+    `transform="translate(${num(half)} ${num(half)})">${art}</g>`
   );
 }
 
@@ -318,8 +346,10 @@ export function buildLabPhysicalSvg(
     );
   }
 
-  // Gate 1: fonts-block-gate (any text present blocks).
-  const textGate = checkLabTextsBlocked(report.texts);
+  // Gate 1: gate de fuentes. Un texto sólo se exporta si sus contornos
+  // vectoriales están calculados (los prepara la UI, porque el motor es
+  // asíncrono); si faltan, la exportación se bloquea con código explícito.
+  const textGate = checkLabTextsBlocked(report.texts, input.textOutlines);
   if (!textGate.ok) return textGate;
 
   // Gate 2: job-graphics scope gate (E3, J3 disclosure).
@@ -350,19 +380,37 @@ export function buildLabPhysicalSvg(
     );
   }
 
-  // Gate 4: orphan text-band knockout (defensive, unreachable via gate 1).
-  // While texts block, no band may exist; a future outline stage feeds real
-  // bands through splitLineKnockouts without touching this gate.
+  // Gate 4: span de texto.
+  // Las bandas legítimas (el texto se exporta con sus contornos reales) fluyen
+  // a la segmentación de la línea: el arco se interrumpe en el hueco del
+  // texto. Se bloquea si una banda no corresponde a ningún texto exportable o
+  // si un texto exportable no tiene span medido (no se inventa ningún span:
+  // la línea no podría interrumpirse en su hueco y el archivo diferiría de la
+  // vista previa).
+  const orphanBand = report.lineKnockouts.find(
+    (knockout) =>
+      knockout.kind === "text-band" &&
+      !report.texts.some((placed) => placed.id === knockout.id),
+  );
+  if (orphanBand) {
+    return fail(
+      "TEXT_SPAN_UNMEASURED",
+      `Knockout de banda de texto «${orphanBand.id}» sin texto exportable en el reporte: no se inventa ningún span; exportación bloqueada (defensivo).`,
+    );
+  }
+  const unmeasuredSpan = report.texts.filter(
+    (placed) => placed.halfSpanDegrees === null,
+  );
+  if (unmeasuredSpan.length > 0) {
+    return fail(
+      "TEXT_SPAN_UNMEASURED",
+      `El texto «${unmeasuredSpan.map((placed) => placed.id).join(", ")}» no tiene span medido en el navegador: la línea no puede interrumpirse en su hueco; exportación bloqueada (no se inventa ningún span).`,
+    );
+  }
   const { disks, bands } = splitLineKnockouts(
     report.lineKnockouts,
     report.frame.sizeFactor,
   );
-  if (bands.length > 0) {
-    return fail(
-      "TEXT_SPAN_UNMEASURED",
-      "Knockout de banda de texto sin texto exportable en el reporte: no se inventa ningún span; exportación bloqueada (defensivo).",
-    );
-  }
 
   const frame = report.frame;
   // Export half-extent: same extent family as the preview fit (rings, line
@@ -419,6 +467,18 @@ export function buildLabPhysicalSvg(
     engraved.push(markup);
   }
 
+  for (const placed of report.texts) {
+    const outline = input.textOutlines?.[placed.id];
+    if (!outline) {
+      // Defensivo: el gate 1 ya lo garantiza.
+      return fail(
+        "FONT_OUTLINES_UNAVAILABLE",
+        `Texto «${placed.id}» sin contornos vectoriales calculados: exportación bloqueada.`,
+      );
+    }
+    engraved.push(textMarkup(placed, outline, half));
+  }
+
   const fileName =
     input.fileName ??
     `lab-fisico-${String(frame.outerDiameter)}x${String(frame.innerDiameter)}-${frame.strategy}.svg`;
@@ -436,6 +496,9 @@ export function buildLabPhysicalSvg(
       strategy: frame.strategy,
       sizeFactor: frame.sizeFactor,
       fileName,
+      ...(input.textOutlines && report.texts.length > 0
+        ? { shaperVersion: input.textOutlines[report.texts[0].id]?.shaperVersion }
+        : {}),
     },
   };
 }

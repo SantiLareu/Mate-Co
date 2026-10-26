@@ -341,6 +341,69 @@ exportación con texto real es la siguiente tarea. Tampoco se modificaron el
 administrador, el almacenamiento de trabajos ni otras funcionalidades del
 personalizador, y no se añadieron dependencias.
 
+## Fase 4 — Exportación SVG con texto vectorial (2026-10-24)
+
+**Objetivo**: el laboratorio exporta los textos como contornos SVG reales,
+conservando la fidelidad con la vista previa.
+
+### Contrato de integración adoptado
+
+El motor es **asíncrono** (WASM) y el serializador del exportador es
+**síncrono**: no se cambió su firma. El punto asíncrono queda en la UI:
+
+```
+UI (React)                                   serializador (síncrono, puro, DOM-free)
+  ├─ report (medidas ya calculadas)
+  ├─ prepareLabTextOutlines(report, textos)  →  { paths[], shaperVersion, advanceMm }
+  └─ buildLabPhysicalSvg({ ..., textOutlines })  ──►  <g id="lab-engraving"> con los paths
+```
+
+- `LabTextOutline` (nuevo): `paths` (mm absolutos, origen en el centro),
+  `shaperVersion` y `advanceMm` (el avance del propio motor, para derivar el
+  span de la banda desde la MISMA fuente que se graba).
+- `BuildLabPhysicalSvgInput.textOutlines` (nuevo, opcional): id del texto
+  colocado → sus contornos.
+- `checkLabTextsBlocked(texts, textOutlines)`: el bloqueo pasa de "hay texto" a
+  "el texto **no** tiene contornos calculados" (mismo código
+  `FONT_OUTLINES_UNAVAILABLE`, mensaje nuevo). Un texto fuera de catálogo, sin
+  glifo o no NFC → la preparación falla y la exportación se bloquea.
+- Gate 4 revisada: las bandas legibles fluyen a la segmentación de la línea (el
+  arco se interrumpe en el hueco del texto); se bloquea si una banda no
+  corresponde a ningún texto o si un texto exportable no tiene span medido.
+- El texto entra en el grupo de grabado como paths rellenos; los aros siguen en
+  `lab-ring-reference`. Sin `<text>`, sin raster, sin fuentes ni referencias
+  externas.
+
+### Ficheros modificados
+
+| Fichero | Cambio |
+|---|---|
+| `src/production-lab/types.ts` | `LabTextOutline`, `textOutlines` en el input, `shaperVersion` en la meta |
+| `src/production-lab/exportTextOutlines.ts` | el gate exige contornos preparados; razones con el marcador "Bloqueo" |
+| `src/production-lab/exportSvg.ts` | `textMarkup`, inserción de los texts en el grupo de grabado, gate 1 con contornos, gate 4 revisada, meta del motor |
+| `src/production-lab/typographyOutlines.ts` | `prepareLabTextOutlines` (preparación asíncrona, fallo explícito) |
+| `src/production-lab/ProductionLab.tsx` | estado + efecto de preparación (clave estable), el panel exporta cuando están listos |
+| `tests/production-lab-text-export.spec.ts` | nuevo (6 tests) |
+| `tests/production-lab-export.spec.ts` | el test del gate se amplía (contornos ausentes) y el E2 del demo pasa a "export habilitado" |
+| `docs/production-lab.md`, `src/typography/README.md` | estado documentado |
+
+### Verificación
+
+| Corrida | Resultado |
+|---|---|
+| `tests/production-lab-text-export.spec.ts` | **6/6**: export habilitado y sin `<text>`/raster; determinismo byte a byte; fidelidad con la vista previa; **18 combinaciones** (3 fuentes × 3 virolas × normal/invertido/rotado) con desviación ≤ 0,2 mm y media ≤ 0,05 mm sin píxeles huérfanos; ejemplos generados; fallo explícito |
+| Specs del laboratorio | 104/104 + el gate actualizado (25/25 en el spec de export) |
+| Typecheck / build | OK |
+
+Ejemplos generados en `test-results/lab-text-export/` (85/50, 80/60, 75/65).
+
+### Lo que NO se ha tocado
+
+El exportador productivo del cliente (`src/export/productionSvg.ts`), el editor,
+el administrador y el almacenamiento de trabajos siguen intactos; la exportación
+con texto del laboratorio es **experimental** y sigue pendiente de validación con
+el grabador real.
+
 ## Tasks
 
 - [x] T1: Diagnóstico medible del test rojo (75×65, −35°): antialiasing/rasterizador,
@@ -373,6 +436,9 @@ personalizador, y no se añadieron dependencias.
   nuevo, demo del laboratorio, ruta de raster sin fallback del sistema, gate
   con evidencia actualizada) + 9 tests de catálogo y 161/161 en las
   focalizadas.
+- [x] T18: Exportación SVG con texto vectorial en el laboratorio (contrato
+  asíncrono→síncrono, gate con contornos preparados, banda de texto real) +
+  6 tests nuevos y la regresión del laboratorio en verde.
 - [x] T12: Procedencia de Dancing Script (`PROVENANCE.md`: SHA-256 verificado
   contra la distribución oficial, OFL, RFN "Dancing Script", eje `wght`).
 - [x] T13: Documentación del spike actualizada (README: motor HarfBuzz,

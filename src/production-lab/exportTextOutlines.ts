@@ -14,7 +14,7 @@
  *
  * El veredicto se sustituye sin tocar el serializador del exportador.
  */
-import type { LabExportCode, PlacedText } from "./types";
+import type { LabExportCode, LabTextOutline, PlacedText } from "./types";
 
 export const LAB_FONT_BLOCK_CODE = "FONT_OUTLINES_UNAVAILABLE";
 
@@ -48,11 +48,31 @@ export function labFontBlockReason(count: number): string {
 
 export function checkLabTextsBlocked(
   texts: readonly PlacedText[],
+  textOutlines?: Record<string, LabTextOutline>,
 ): { ok: true } | { ok: false; code: LabExportCode; reason: string } {
   if (texts.length === 0) return { ok: true };
-  return {
-    ok: false,
-    code: LAB_FONT_BLOCK_CODE,
-    reason: labFontBlockReason(texts.length),
-  };
+  if (!textOutlines) {
+    return {
+      ok: false,
+      code: LAB_FONT_BLOCK_CODE,
+      reason:
+        `Bloqueo de fuentes: la composición contiene ${String(texts.length)} texto(s) ` +
+        "y sus contornos vectoriales aún no están calculados: no se exporta un " +
+        "archivo con el texto sin convertir.",
+    };
+  }
+  const missing = texts
+    .filter((placed) => !(placed.id in textOutlines))
+    .map((placed) => placed.id);
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      code: LAB_FONT_BLOCK_CODE,
+      reason:
+        `Bloqueo de fuentes: la composición contiene ${String(texts.length)} texto(s) ` +
+        `y no se pudieron calcular los contornos de: ${missing.join(", ")}. No se ` +
+        "exporta un archivo incompleto.",
+    };
+  }
+  return { ok: true };
 }

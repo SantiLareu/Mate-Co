@@ -15,6 +15,7 @@ import type { DesignIcon } from "../components/IconElement";
 import type { JobIconSnapshot } from "../jobs/snapshot";
 import type {
   LabExportAssetFlags,
+  LabTextOutline,
   PhysicalReport,
   TextMeasurement,
 } from "./types";
@@ -23,7 +24,8 @@ import {
   embedApprovedAsset,
   scanApprovedAssetFlags,
 } from "./exportApprovedAsset";
-import { LAB_FONT_BLOCK_CODE, labFontBlockReason } from "./exportTextOutlines";
+import { LAB_FONT_BLOCK_CODE } from "./exportTextOutlines";
+import { prepareLabTextOutlines } from "./typographyOutlines";
 import {
   buildPhysicalReport,
   createPhysicalFrame,
@@ -250,8 +252,23 @@ function computeLabExportState(args: {
   sourceIcons: readonly DesignIcon[];
   jobIcons: readonly JobIconSnapshot[] | null;
   graphicsCount: number;
+  /**
+   * Contornos vectoriales ya calculados (id del texto -> contornos). Los
+   * produce el motor asíncrono; el serializador sigue siendo síncrono.
+   */
+  textOutlines?: Record<string, LabTextOutline> | null;
+  /** Error explícito al preparar los contornos (bloquea la exportación). */
+  textOutlineError?: string | null;
 }): LabExportPanelState {
-  const { report, advances, sourceIcons, jobIcons, graphicsCount } = args;
+  const {
+    report,
+    advances,
+    sourceIcons,
+    jobIcons,
+    graphicsCount,
+    textOutlines,
+    textOutlineError,
+  } = args;
   if (!report) {
     return {
       kind: "blocked",
@@ -261,14 +278,24 @@ function computeLabExportState(args: {
     };
   }
   const fileName = labExportFileName(report);
-  // Fonts-block-gate first: demo texts block with the exact code even while
-  // the advance probe is still measuring.
+  // El texto sólo se exporta con sus contornos vectoriales reales (los
+  // calcula el motor asíncrono). Si faltan o fallaron, se bloquea con el
+  // código explícito: nunca un archivo con el texto sin convertir.
   if (report.texts.length > 0) {
-    return {
-      kind: "blocked",
-      reason: `${LAB_FONT_BLOCK_CODE}: ${labFontBlockReason(report.texts.length)}`,
-      fileName,
-    };
+    if (textOutlineError) {
+      return {
+        kind: "blocked",
+        reason: `${LAB_FONT_BLOCK_CODE}: ${textOutlineError}`,
+        fileName,
+      };
+    }
+    if (!textOutlines) {
+      return {
+        kind: "blocked",
+        reason: `${LAB_FONT_BLOCK_CODE}: calculando los contornos vectoriales del texto…`,
+        fileName,
+      };
+    }
   }
   // Graphics scope gate (E3, J3 disclosure): traced job images are outside
   // the physical engine (texts/icons/approved only). Blocked with an
@@ -365,6 +392,7 @@ function computeLabExportState(args: {
     approvedEmbeds,
     fileName,
     graphicsCount,
+    ...(textOutlines ? { textOutlines } : {}),
   });
   if (!built.ok) {
     return {
@@ -390,12 +418,16 @@ function LabPhysicalExport({
   sourceIcons,
   jobIcons,
   graphicsCount,
+  textOutlines,
+  textOutlineError,
 }: {
   report: PhysicalReport | null;
   advances: Map<string, number> | null;
   sourceIcons: readonly DesignIcon[];
   jobIcons: readonly JobIconSnapshot[] | null;
   graphicsCount: number;
+  textOutlines: Record<string, LabTextOutline> | null;
+  textOutlineError: string | null;
 }): React.JSX.Element {
   const state = useMemo(
     () =>
@@ -405,8 +437,18 @@ function LabPhysicalExport({
         sourceIcons,
         jobIcons,
         graphicsCount,
+        textOutlines,
+        textOutlineError,
       }),
-    [report, advances, sourceIcons, jobIcons, graphicsCount],
+    [
+      report,
+      advances,
+      sourceIcons,
+      jobIcons,
+      graphicsCount,
+      textOutlines,
+      textOutlineError,
+    ],
   );
   const [lastDownload, setLastDownload] = useState<string | null>(null);
   const handleExport = useCallback(() => {
@@ -687,6 +729,69 @@ export default function ProductionLab() {
   // browser advance (advance unavailable — distinct from ink unknown).
   const unavailableAdvanceIds =
     advances === null ? [] : missingAdvanceIds(sourceTexts, advances);
+
+  // Contornos vectoriales del texto: los calcula el motor (WASM, asíncrono) y
+  // el serializador síncrono los consume como datos ya resueltos.
+  //
+  // La clave de preparación es un HUELLO estable (no la identidad del
+  // objeto reporte): si dependiera de la identidad, cada setState volvería a
+  // disparar el efecto y el componente entraría en bucle.
+  const outlineKey = useMemo(() => {
+    if (!parsed.report) return "";
+    return JSON.stringify({
+      texts: parsed.report.texts.map((placed) => [
+        placed.id,
+        placed.fontSizeMm,
+        placed.letterSpacingMm,
+        placed.baselineRadiusMm,
+        placed.angle,
+        placed.sweep,
+        placed.invertedDyMm,
+      ]),
+      sources: sourceTexts.map((element) => [
+        element.id,
+        element.text,
+        element.fontFamily,
+      ]),
+    });
+  }, [parsed.report, sourceTexts]);
+  const latestOutlineInput = useRef({
+    report: parsed.report,
+    sourceTexts,
+  });
+  latestOutlineInput.current = { report: parsed.report, sourceTexts };
+  const [textOutlines, setTextOutlines] = useState<Record<
+    string,
+    LabTextOutline
+  > | null>(null);
+  const [textOutlineError, setTextOutlineError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!outlineKey) {
+      setTextOutlines(null);
+      setTextOutlineError(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { report, sourceTexts: texts } = latestOutlineInput.current;
+      if (!report) return;
+      if (report.texts.length === 0) {
+        if (!cancelled) setTextOutlines({});
+        return;
+      }
+      const prepared = await prepareLabTextOutlines(report, texts);
+      if (cancelled) return;
+      if (!prepared.ok) {
+        setTextOutlineError(prepared.reason);
+        setTextOutlines({});
+        return;
+      }
+      setTextOutlines(prepared.outlines);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [outlineKey]);
 
   // Job icons whose embedded definition has no live-catalog entry: the
   // ORIGINAL pane still paints them from the snapshot (JobSnapshotPreview),
@@ -1001,6 +1106,8 @@ export default function ProductionLab() {
                     sourceIcons={sourceIcons}
                     jobIcons={readyLab ? readyLab.job.composition.icons : null}
                     graphicsCount={jobGraphicsCount}
+                    textOutlines={textOutlines}
+                    textOutlineError={textOutlineError}
                   />
                 </>
               )}
@@ -1042,6 +1149,8 @@ export default function ProductionLab() {
                     sourceIcons={sourceIcons}
                     jobIcons={readyLab ? readyLab.job.composition.icons : null}
                     graphicsCount={jobGraphicsCount}
+                    textOutlines={textOutlines}
+                    textOutlineError={textOutlineError}
                   />
                   <p data-testid="lab-frame">
                     {`Anillo de referencia: ⌀ exterior ${parsed.report.frame.outerDiameter} mm (Ro ${parsed.report.frame.outerRadius} mm) · ⌀ interior ${parsed.report.frame.innerDiameter} mm (Ri ${parsed.report.frame.innerRadius} mm).`}

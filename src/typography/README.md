@@ -69,9 +69,10 @@ No hay ninguna fuente del sistema en el catálogo: si un binario no llegara a
 cargarse, `font-display: block` deja el texto invisible en vez de dibujarlo
 con otra tipografía.
 
-## Pendiente
+## Consumidor actual
 
-El motor **no está conectado al exportador**: el gate
-`FONT_OUTLINES_UNAVAILABLE` sigue vigente para el uso real. Ver
-`odd/tasks/stage4-typography.md` (Fase 2) para el impacto pendiente de
-autorización.
+El laboratorio físico (`src/production-lab/`) ya exporta los textos con este
+motor: la UI calcula los contornos (asíncrono) y el serializador —que sigue
+síncrono— los recibe como datos ya resueltos
+(`BuildLabPhysicalSvgInput.textOutlines`). Ver
+`odd/tasks/stage4-typography.md` (Fase 4) y `docs/production-lab.md`.
