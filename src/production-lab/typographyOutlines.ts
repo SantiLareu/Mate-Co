@@ -26,23 +26,16 @@ import {
   type TypographyFontId,
   TYPOGRAPHY_FONTS,
 } from "../typography";
+import { catalogueFontForFamily } from "../typography/catalogue";
 import type { LabTextOutline, PhysicalReport } from "./types";
 import type { TextElement } from "../components/CurvedText";
 
-/** Familias del catálogo empaquetado, por nombre visible. */
-const FAMILY_TO_ID = new Map<string, TypographyFontId>(
-  Object.values(TYPOGRAPHY_FONTS).map((f) => [f.family, f.id]),
-);
-
 /**
- * Mapea una familia de texto del laboratorio al catálogo empaquetado.
- *
- * Devuelve `null` si la familia no está en el catálogo: el llamante debe
- * bloquear el caso explícitamente (nunca sustituir la fuente).
+ * El mapa familia → fuente del catálogo vive en `src/typography/catalogue.ts`
+ * (es una decisión del catálogo, no del laboratorio) y se re-exporta aquí para
+ * no romper a los consumidores que ya lo usaban desde este módulo.
  */
-export function catalogueFontForFamily(family: string): TypographyFontId | null {
-  return FAMILY_TO_ID.get(family.trim()) ?? null;
-}
+export { catalogueFontForFamily };
 
 /** Medidas del laboratorio que el motor necesita para colocar el texto. */
 export type LabTextGeometry = {

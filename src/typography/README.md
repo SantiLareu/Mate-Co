@@ -10,6 +10,7 @@ geometría y las mismas fuentes que el laboratorio físico.
 | `harfbuzz.ts` | Shaper HarfBuzz (WASM): GSUB (ligaduras y sustituciones contextuales), GPOS (kerning real, incluidos lookups con `lookupFlag` y GDEF), ejes variables y contornos por glifo. |
 | `curved.ts` | Geometría: colocación sobre el círculo base (ángulo 0 arriba, horario), transformada rígida del contorno a mm y serialización canónica (3 decimales = 1 µm). |
 | `fonts.ts` | Catálogo: Poppins SemiBold, Lato SemiBold y Dancing Script (variable), con licencia y procedencia. |
+| `catalogue.ts` | Mapa de la familia **visible** (la que ofrece el personalizador) al identificador de fuente del motor. Devuelve `null` si la familia no está en el catálogo: nunca sustituye. Vive aquí para que `src/export` no dependa de `src/production-lab`. |
 | `index.ts` | API pública: `renderCurvedText(spec)` → glifos con su path en mm. |
 
 ## Reglas de diseño
