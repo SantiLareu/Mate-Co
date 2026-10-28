@@ -4,7 +4,9 @@ import {
   downloadProductionSvg,
   buildProductionSvg,
   EXPORT_FILENAME,
+  type TraceTextFn,
 } from "../export/productionSvg";
+import { resolveClientTextExportMode } from "../export/clientTextExportMode";
 import type { TextElement } from "./CurvedText";
 import type { DesignIcon } from "./IconElement";
 import type { UploadedGraphicElement } from "./UploadedGraphic";
@@ -87,12 +89,38 @@ export default function ConfirmPanel({
     setExportPhase("working");
     setExportError("");
     try {
-      const svg = await buildProductionSvg({
-        texts,
-        icons,
-        graphics,
-        circularLines,
-      });
+      // E3.1: el modo del trazador de texto es interno y experimental; el
+      // predeterminado sigue siendo el camino raster de siempre. En modo
+      // vectorial, el plan hace el PRE-FLIGHT (catálogo, motor, glifos) y
+      // falla con un mensaje accionable ANTES de generar el SVG: si algo
+      // falla, no se descarga nada (la exportación es atómica).
+      //
+      // El módulo del camino vectorial se carga BAJO DEMANDA: el motor de
+      // HarfBuzz no debe entrar en el bundle inicial del cliente.
+      let traceText: TraceTextFn | undefined;
+      if (resolveClientTextExportMode() === "vector") {
+        const { planVectorExport } = await import(
+          "../export/vectorProductionExport"
+        );
+        const plan = await planVectorExport(texts);
+        if (!plan.ok) {
+          setExportPhase("error");
+          // El código va delante, como en los errores del trazador raster:
+          // el mensaje es legible y el código permite diagnosticar.
+          setExportError(`${plan.code}: ${plan.message}`);
+          return;
+        }
+        traceText = plan.traceText;
+      }
+      const svg = await buildProductionSvg(
+        {
+          texts,
+          icons,
+          graphics,
+          circularLines,
+        },
+        traceText,
+      );
       downloadProductionSvg(svg);
       setExportPhase("done");
     } catch (reason) {

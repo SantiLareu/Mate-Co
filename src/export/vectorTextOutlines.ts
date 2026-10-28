@@ -61,7 +61,7 @@
  *   (`GLYPH_MISSING`) y no se sustituye nada.
  */
 import { clampTextRadius, clampTextScale } from "../components/CurvedText";
-import { renderCurvedText } from "../typography";
+import { renderCurvedText, type TypographyResultOk } from "../typography";
 import { catalogueFontForFamily } from "../typography/catalogue";
 import { EXPORT_CENTER, type Box } from "./geometry";
 import type { TraceTextFn } from "./productionSvg";
@@ -83,31 +83,62 @@ export type VectorTextTrace = TextTrace;
 export type VectorTextPath = { d: string };
 
 /**
- * Traza un texto del cliente como contornos vectoriales.
+ * El texto compuesto con el motor, listo para convertirlo en trazo.
  *
- * Devuelve `null` cuando no hay tinta que trazar (texto vacío o sólo
- * espacios) y lanza `Error` —con un código explícito— cuando el texto no se
- * puede componer fielmente.
+ * Separar la COMPOSICIÓN (el motor) de la CONSTRUCCIÓN del trazo (la
+ * geometría) permite que un pre-flight componga una sola vez y que la
+ * exportación reutilice esa composición: no se ejecuta dos veces una
+ * conversión completa (E3.1).
  */
-export async function traceVectorText(
+export type ComposedVectorText = {
+  ok: true;
+  /** El resultado del motor (glifos y clusters ya colocados). */
+  result: TypographyResultOk;
+  /** Escala efectiva del texto. */
+  scale: number;
+  /** Radio base del recorrido (`radius - 14 * escala`). */
+  baselineRadius: number;
+  /** El texto que se compuso (normalizado a NFC). */
+  text: string;
+} | {
+  ok: false;
+  /** Código explícito del fallo (`FONT_NOT_IN_CATALOGUE`, `GLYPH_MISSING`…). */
+  code: string;
+  /** Mensaje accionable en español. */
+  message: string;
+};
+
+/**
+ * Compone el texto con el motor de HarfBuzz (E3.1: sin geometría de salida).
+ *
+ * No lanza: devuelve el fallo explícito, para que quien llame decida
+ * (el pre-flight lo muestra; el trazador lo convierte en `Error`).
+ */
+export async function composeVectorText(
   request: VectorTextTraceRequest,
-): Promise<VectorTextTrace | null> {
-  if (!request.text) return null;
+): Promise<ComposedVectorText> {
+  if (!request.text) {
+    return { ok: false, code: "TEXT_EMPTY", message: "El texto está vacío." };
+  }
 
   const fontId = catalogueFontForFamily(request.fontFamily);
   if (!fontId) {
-    throw new Error(
-      `FONT_NOT_IN_CATALOGUE: la tipografía «${request.fontFamily}» no está en el catálogo tipográfico: no se sustituye por otra.`,
-    );
+    return {
+      ok: false,
+      code: "FONT_NOT_IN_CATALOGUE",
+      message: `La tipografía «${request.fontFamily}» no está en el catálogo tipográfico: no se sustituye por otra.`,
+    };
   }
 
   const scale = clampTextScale(request.scale);
   const radius = clampTextRadius(request.radius, scale);
   const baselineRadius = radius - 14 * scale;
   if (!(baselineRadius > 0)) {
-    throw new Error(
-      `INVALID_RADIUS: el radio base (${baselineRadius}) no es positivo: sin geometría no hay contornos.`,
-    );
+    return {
+      ok: false,
+      code: "INVALID_RADIUS",
+      message: `El radio base (${baselineRadius}) no es positivo: sin geometría no hay contornos.`,
+    };
   }
 
   // E3.0: la normalización NFC ocurre SÓLO en la entrada (equivalencia
@@ -132,8 +163,23 @@ export async function traceVectorText(
     invertedDyMm: request.inverted ? 26 * scale : 0,
   });
   if (!result.ok) {
-    throw new Error(`${result.code}: ${result.reason}`);
+    return { ok: false, code: result.code, message: result.reason };
   }
+  return { ok: true, result, scale, baselineRadius, text };
+}
+
+/**
+ * Construye el trazo a partir de una composición (E3.1).
+ *
+ * Devuelve `null` cuando no hay tinta que trazar (texto vacío o sólo
+ * espacios): es lo que hace el trazador rasterizo actual y evita bandas
+ * fantasma.
+ */
+export function buildVectorTrace(
+  composed: ComposedVectorText,
+): VectorTextTrace | null {
+  if (!composed.ok) return null;
+  const { result, baselineRadius } = composed;
 
   // VENTANA DE VISIBILIDAD (E3.0).
   //
@@ -153,8 +199,7 @@ export async function traceVectorText(
   // los clusters que el navegador no pintaría.
   const halfWindow = Math.PI * baselineRadius;
   const visible = result.clusters.filter(
-    (cluster) =>
-      cluster.sMidMm >= -halfWindow && cluster.sMidMm <= halfWindow,
+    (cluster) => cluster.sMidMm >= -halfWindow && cluster.sMidMm <= halfWindow,
   );
 
   // Cada cluster conserva su geometría; un glifo sin contornos (el espacio)
@@ -195,6 +240,25 @@ export async function traceVectorText(
     // exportador deriva la banda de protección del texto.
     arcLength: geometry.arcLength,
   };
+}
+
+/**
+ * Traza un texto del cliente como contornos vectoriales.
+ *
+ * Devuelve `null` cuando no hay tinta que trazar (texto vacío o sólo
+ * espacios) y lanza `Error` —con un código explícito— cuando el texto no se
+ * puede componer fielmente.
+ */
+export async function traceVectorText(
+  request: VectorTextTraceRequest,
+): Promise<VectorTextTrace | null> {
+  // Sin texto no hay nada que trazar: `null` (no un error).
+  if (!request.text) return null;
+  const composed = await composeVectorText(request);
+  if (!composed.ok) {
+    throw new Error(`${composed.code}: ${composed.message}`);
+  }
+  return buildVectorTrace(composed);
 }
 
 /**

@@ -83,27 +83,30 @@ export type TypographyCluster = {
   glyphs: TypographyGlyph[];
 };
 
+/** El resultado exitoso de la composición (con sus clusters). */
+export type TypographyResultOk = {
+  ok: true;
+  fontId: TypographyFontId;
+  /** Peso con el que se compuso (para fuentes variables). */
+  weight: number;
+  glyphs: TypographyGlyph[];
+  /**
+   * Clusters de la composición, con sus límites de arco. Es la unidad
+   * que usa el consumidor para decidir qué texto queda dentro de la
+   * ventana visible del path (E3.0).
+   */
+  clusters: TypographyCluster[];
+  /** Longitud total del texto en el arco, mm. */
+  totalAdvanceMm: number;
+  /** Extensión angular del texto, grados. */
+  spanDegrees: number;
+  unitsPerEm: number;
+  /** Versión de HarfBuzz usada (para reproducibilidad). */
+  shaperVersion: string;
+};
+
 export type TypographyResult =
-  | {
-      ok: true;
-      fontId: TypographyFontId;
-      /** Peso con el que se compuso (para fuentes variables). */
-      weight: number;
-      glyphs: TypographyGlyph[];
-      /**
-       * Clusters de la composición, con sus límites de arco. Es la unidad
-       * que usa el consumidor para decidir qué texto queda dentro de la
-       * ventana visible del path (E3.0).
-       */
-      clusters: TypographyCluster[];
-      /** Longitud total del texto en el arco, mm. */
-      totalAdvanceMm: number;
-      /** Extensión angular del texto, grados. */
-      spanDegrees: number;
-      unitsPerEm: number;
-      /** Versión de HarfBuzz usada (para reproducibilidad). */
-      shaperVersion: string;
-    }
+  | TypographyResultOk
   | {
       ok: false;
       code:
