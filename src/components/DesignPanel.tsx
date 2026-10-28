@@ -126,6 +126,15 @@ export default function DesignPanel({
                 selected && onUpdate(selected.id, { text: event.target.value })
               }
             />
+            {/* E4.1: aviso discreto y accionable cuando el texto no entra ni
+                con la escala mínima. La plaza tiene altura fija (reservada
+                siempre) para que el aviso NO mueva el layout: los controles
+                táctiles de la vista previa no cambian de sitio. */}
+            <p className="text-fit-notice" role="status">
+              {selected?.textFitBlocked
+                ? "No entra en la virola: acortalo el texto."
+                : ""}
+            </p>
             <label htmlFor="text-font">Tipografía</label>
             <select
               id="text-font"

@@ -63,6 +63,7 @@
 import { clampTextRadius, clampTextScale } from "../components/CurvedText";
 import { renderCurvedText, type TypographyResultOk } from "../typography";
 import { catalogueFontForFamily } from "../typography/catalogue";
+import { textFitsPath } from "../typography/textFit";
 import { EXPORT_CENTER, type Box } from "./geometry";
 import type { TraceTextFn } from "./productionSvg";
 import type { TextTrace } from "./textOutlines";
@@ -96,6 +97,8 @@ export type ComposedVectorText = {
   result: TypographyResultOk;
   /** Escala efectiva del texto. */
   scale: number;
+  /** Radio del elemento (unidades de diseño). */
+  radius: number;
   /** Radio base del recorrido (`radius - 14 * escala`). */
   baselineRadius: number;
   /** El texto que se compuso (normalizado a NFC). */
@@ -165,7 +168,10 @@ export async function composeVectorText(
   if (!result.ok) {
     return { ok: false, code: result.code, message: result.reason };
   }
-  return { ok: true, result, scale, baselineRadius, text };
+  // E4.1: la geometría se devuelve tal cual; el ENCJE se comprueba en la
+  // frontera de exportación (`traceVectorText` y el pre-flight), que es
+  // donde un texto que no cabe debe bloquear la generación del archivo.
+  return { ok: true, result, scale, radius, baselineRadius, text };
 }
 
 /**
@@ -257,6 +263,17 @@ export async function traceVectorText(
   const composed = await composeVectorText(request);
   if (!composed.ok) {
     throw new Error(`${composed.code}: ${composed.message}`);
+  }
+  // E4.1 — protección de exportación: ningún camino puede generar un archivo
+  // con el texto parcialmente oculto. El texto debe entrar COMPLETO en el
+  // recorrido circular; si no, el editor ya lo ha reducido (E4.1) y aquí se
+  // bloquea con un error explícito (nunca un SVG con texto cortado).
+  if (!textFitsPath(composed.result.totalAdvanceMm, composed.radius, composed.scale)) {
+    throw new Error(
+      `TEXT_DOES_NOT_FIT: el texto «${request.text}» es más largo que el recorrido de la virola ` +
+      `(avance ${Math.round(composed.result.totalAdvanceMm)} u sobre un recorrido de ` +
+      `${Math.round(2 * Math.PI * composed.baselineRadius)} u); reducilo o acortalo.`,
+    );
   }
   return buildVectorTrace(composed);
 }

@@ -340,6 +340,17 @@ h1 {
 .text-editor select {
   margin-bottom: calc(12 * var(--unit));
 }
+/* E4.1: aviso del encaje del texto. La plaza tiene ALTURA FIJA (reservada
+   siempre): el aviso aparece y desaparece SIN mover el layout, así que los
+   controles táctiles de la vista previa no cambian de sitio (en móvil el
+   panel va encima del lienzo y cualquier crecimiento lo desplazaría). */
+.text-fit-notice {
+  height: calc(46 * var(--unit));
+  margin: 0;
+  font-size: calc(17 * var(--unit));
+  line-height: 1.3;
+  color: #8a4b2a;
+}
 .radial-position {
   display: grid;
   gap: calc(4 * var(--unit));

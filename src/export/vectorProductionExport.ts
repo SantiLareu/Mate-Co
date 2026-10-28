@@ -52,6 +52,7 @@ import {
   type ComposedVectorText,
   type VectorTextTraceRequest,
 } from "./vectorTextOutlines";
+import { textFitsPath } from "../typography/textFit";
 
 /** El fallo del pre-flight: un código y un mensaje accionable. */
 export type VectorPreflightFailure = {
@@ -112,6 +113,19 @@ export async function planVectorExport(
         ok: false,
         code: result.code,
         message: `No se puede exportar el texto «${element.text}»: ${result.message}`,
+      };
+    }
+    // E4.1 — el texto debe entrar COMPLETO en el recorrido circular: un
+    // diseño imposible de ajustar se bloquea aquí, antes de generar el SVG.
+    if (!textFitsPath(result.result.totalAdvanceMm, result.radius, result.scale)) {
+      return {
+        ok: false,
+        code: "TEXT_DOES_NOT_FIT",
+        message:
+          `No se puede exportar el texto «${element.text}»: es más largo que el ` +
+          `recorrido de la virola (avance ${Math.round(result.result.totalAdvanceMm)} u ` +
+          `sobre un recorrido de ${Math.round(2 * Math.PI * result.baselineRadius)} u); ` +
+          `reducilo o acortalo.`,
       };
     }
     composed.set(requestKey(request), result);

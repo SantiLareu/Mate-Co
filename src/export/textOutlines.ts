@@ -1,4 +1,5 @@
 import { clampTextRadius, clampTextScale } from '../components/CurvedText';
+import { textFitsPath } from '../typography/textFit';
 import { vectorizeWithVTracer } from '../vectorization/vectorize/vtracerAdapter';
 import type { BinaryMask } from '../vectorization/types';
 import type { Box } from './geometry';
@@ -36,6 +37,10 @@ const wrapAngle = (degrees: number) => ((degrees + 540) % 360) - 180;
  * Sin esto, el canvas mediría con la fuente por defecto del navegador y el
  * trazado de texto se haría con una tipografía distinta de la que se ve en el
  * editor (sustitución silenciosa, justo lo que la Etapa 4 prohíbe).
+ *
+ * E4.1: si la fuente NO está disponible después de pedirla, se lanza un
+ * error explícito: el raster **no** puede seguir con la tipografía de
+ * reserva, porque el archivo que se descargaría sería de otra letra.
  */
 async function ensureFontLoaded(family: string): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return;
@@ -43,8 +48,17 @@ async function ensureFontLoaded(family: string): Promise<void> {
   try {
     await document.fonts.load(`600 16px "${family}"`);
     await document.fonts.ready;
-  } catch {
-    // La fuente no se pudo cargar: el llamante decide (sin sustituto).
+  } catch (error) {
+    throw new Error(
+      `FONT_UNAVAILABLE: no se pudo cargar la tipografía «${family}»: ` +
+      `${(error as Error).message}`,
+    );
+  }
+  if (!document.fonts.check(`600 16px "${family}"`)) {
+    throw new Error(
+      `FONT_UNAVAILABLE: la tipografía «${family}» no está disponible en el ` +
+      `navegador: no se exporta con una tipografía de reserva.`,
+    );
   }
 }
 
@@ -100,6 +114,17 @@ export async function traceTextElement(request: TextTraceRequest): Promise<TextT
     await ensureFontLoaded(request.fontFamily);
     measurer.font = `600 ${fontSize}px "${request.fontFamily}"`;
     estimatedLength = measurer.measureText(request.text).width + letterSpacing * request.text.length;
+  }
+  // E4.1 — protección de exportación (los dos caminos): ningún archivo puede
+  // generarse con el texto parcialmente oculto. El texto debe entrar
+  // COMPLETO en el recorrido circular; si no, el editor ya lo ha reducido
+  // (E4.1) y aquí se bloquea con un error explícito.
+  if (!textFitsPath(estimatedLength, radius, scale)) {
+    throw new Error(
+      `TEXT_DOES_NOT_FIT: el texto «${request.text}» es más largo que el recorrido de la virola ` +
+      `(avance ${Math.round(estimatedLength)} u sobre un recorrido de ` +
+      `${Math.round(2 * Math.PI * pathRadius)} u); reducilo o acortalo.`,
+    );
   }
   const estimatedHalfSpan = Math.min(135, Math.max(7, (estimatedLength / 2 + 14) / radius * 180 / Math.PI)) + 18;
 

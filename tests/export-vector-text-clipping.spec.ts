@@ -137,13 +137,34 @@ async function measure(page: Page, scenario: Scenario): Promise<Metrics> {
         arcLength: number;
       } | null = null;
       try {
-        trace = await adapter.vectorTextTrace({
+        // E4.1: el ADAPTADOR (la frontera de exportación) rechaza un texto
+        // que no cabe en el recorrido. Para ejercitar la GEOMETRÍA del
+        // recorte —que sigue viva como defensa en profundidad— se compone y
+        // se construye por debajo de esa frontera.
+        const composed = await adapter.composeVectorText({
           text: scenario.text,
           fontFamily: fonts.TYPOGRAPHY_FONTS.poppins.family,
           scale,
           radius,
           inverted,
         });
+        if (!composed.ok) {
+          return {
+            error: `${composed.code}: ${composed.message}`,
+            inkReference: 0,
+            inkAdapter: 0,
+            meanDeviation: 0,
+            maxDeviation: 0,
+            unpaired: 0,
+            referenceArc: 0,
+            adapterArc: 0,
+            pathCount: 0,
+            cropX: 0,
+            cropY: 0,
+            pixelScale: 0,
+          };
+        }
+        trace = adapter.buildVectorTrace(composed);
       } catch (error) {
         return {
           error: String((error as Error).message),
@@ -589,25 +610,27 @@ test.describe("adaptador vectorial: ventana de visibilidad del texto largo", () 
       };
 
       // El SVG con el trazador VECTORIAL (inyectado por el seam existente).
-      const vectorSvg = await buildProductionSvg(state, adapter.vectorTextTrace);
+      // E4.1: este texto NO entra en el recorrido, así que el trazador de
+      // exportación lo rechazaría; para comprobar la banda se usa el
+      // trazador por debajo de esa frontera.
+      const vectorTrace = async () => {
+        const composed = await adapter.composeVectorText({
+          text: state.texts[0].text,
+          fontFamily: state.texts[0].fontFamily,
+          scale: 1,
+          radius: 374,
+          inverted: false,
+        });
+        if (!composed.ok) throw new Error(`${composed.code}: ${composed.message}`);
+        return adapter.buildVectorTrace(composed);
+      };
+      const vectorSvg = await buildProductionSvg(state, vectorTrace);
 
       // El mismo SVG con un trazador de referencia que devuelve el mismo
       // arco: la banda (y por tanto los arcos de las líneas decorativas) debe
       // ser idéntica.
-      const trace = await adapter.vectorTextTrace({
-        text: state.texts[0].text,
-        fontFamily: state.texts[0].fontFamily,
-        scale: 1,
-        radius: 374,
-        inverted: false,
-      });
-      const stubArc = await adapter.vectorTextTrace({
-        text: state.texts[0].text,
-        fontFamily: state.texts[0].fontFamily,
-        scale: 1,
-        radius: 374,
-        inverted: false,
-      });
+      const trace = await vectorTrace();
+      const stubArc = await vectorTrace();
       const stubSvg = await buildProductionSvg(state, async () => ({
         paths: trace!.paths,
         cropX: trace!.cropX,

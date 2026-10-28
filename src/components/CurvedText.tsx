@@ -1,6 +1,8 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import ElementHandle, { useSvgPixelSize } from './ElementHandle';
 import { matePointer, polarPoint, useDirectDrag, usePreventManipulationScroll } from './directManipulation';
+import { advancePerScale, fitTextToPath } from '../typography/textFit';
+import { isFontAvailable } from '../typography/fontAvailability';
 
 // Position and size deliberately have independent safety limits. The center of
 // an element may approach either edge of the rim, as in the reference editor.
@@ -10,7 +12,12 @@ export const clampTextScale = (scale: number) => Number.isFinite(scale) ? Math.m
 export const clampTextRadius = (radius: number, _scale = 1) => Number.isFinite(radius)
   ? Math.min(TEXT_RADIUS.max, Math.max(TEXT_RADIUS.min, radius)) : TEXT_RADIUS.center;
 
-export type TextElement = { id: string; text: string; fontFamily: string; angle: number; radius: number; inverted: boolean; scale?: number };
+export type TextElement = { id: string; text: string; fontFamily: string; angle: number; radius: number; inverted: boolean; scale?: number; /**
+ * E4.1: el texto no entra ni con la escala mínima (0,3). Es un aviso
+ * transitorio del editor (no se persiste en los trabajos: el snapshot copia
+ * sólo los campos del diseño) y no altera la escala.
+ */
+textFitBlocked?: boolean };
 type Props = {
   element: TextElement;
   editing: boolean;
@@ -35,10 +42,53 @@ export default function CurvedText({ element, editing, selected, onSelect, onUpd
   const directDrag = useDirectDrag(element.angle, element.radius, position => onUpdate(element.id, position));
   const [length, setLength] = useState(150);
   const pathId = `curve-${element.id}`;
-  useLayoutEffect(() => {
-    setLength(textRef.current?.getComputedTextLength() ?? 150);
-  }, [element.text, element.fontFamily, scale]);
   const radius = clampTextRadius(element.radius, scale);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const measured = textRef.current?.getComputedTextLength() ?? 150;
+      setLength(measured);
+      // La medición sólo vale si la tipografía pedida está DISPONIBLE: con la
+      // de reserva el avance es otro (medido: 1 901,9 u en vez de 2 856,8 u
+      // para el mismo texto) y el ajuste sería erróneo. Mientras no esté, no
+      // se toca el diseño: se vuelve a medir cuando las fuentes cargan.
+      if (!isFontAvailable(element.fontFamily)) return;
+      // E4.1 — el texto no puede salirse del recorrido circular de la
+      // virola: si no cabe entero, se reduce SÓLO su escala (nada más:
+      // ni el contenido, ni la fuente, ni el radio, ni el ángulo, ni la
+      // inversión, ni la posición) hasta que entre completo.
+      //
+      // La escala efectiva es la que guarda el elemento (`TextElement.scale`),
+      // así que la vista previa, los tiradores y los dos exportadores usan
+      // SIEMPRE el mismo tamaño: no puede haber discrepancias entre lo que se
+      // ve, lo que se toca y lo que se graba.
+      //
+      // El ajuste es una forma cerrada (`textFit.ts`): sin iteración y sin
+      // realimentación, así que no puede oscilar entre dos tamaños cercanos.
+      // La comparación con una tolerancia evita el bucle de actualización
+      // (el ajuste converge en una pasada).
+      const fit = fitTextToPath({
+        advancePerUnitScale: advancePerScale(measured, scale),
+        radius,
+        requestedScale: scale,
+        minScale: TEXT_SCALE.min,
+        maxScale: TEXT_SCALE.max,
+      });
+      const changes: Partial<TextElement> = {};
+      if (Math.abs(fit.scale - scale) > 1e-6) changes.scale = fit.scale;
+      // No cabe ni con la escala mínima: se avisa (el texto no se toca).
+      if (fit.doesNotFit !== !!element.textFitBlocked) {
+        changes.textFitBlocked = fit.doesNotFit;
+      }
+      if (Object.keys(changes).length > 0) onUpdate(element.id, changes);
+    };
+    measure();
+    // La fuente del catálogo puede cargar después del primer montaje: hasta
+    // entonces la medición es de la tipografía de reserva y el ajuste sería
+    // erróneo. Al cargar las fuentes se vuelve a medir.
+    if (typeof document !== 'undefined' && document.fonts) {
+      void document.fonts.ready.then(measure);
+    }
+  }, [element.text, element.fontFamily, scale, radius]);
   const pathRadius = radius - 14 * scale;
   const sweep = element.inverted ? 0 : 1;
   const halfSpan = Math.min(135, Math.max(7, (length / 2 + 14) / radius * 180 / Math.PI));
