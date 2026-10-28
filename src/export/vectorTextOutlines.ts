@@ -44,13 +44,21 @@
  *
  * TEXTO LARGO
  *   El motor NO recorta: compone el texto completo aunque no quepa en el
- *   arco (el navegador, en cambio, recorta lo que sobresale del path). Con
- *   el catálogo del cliente el caso no aparece —el editor limita el texto a
- *   80 caracteres y a escala 1 el arco completo mide 2262 unidades de
- *   diseño, de sobra— pero a escala 3 (105 u de fuente) un texto de 80
- *   caracteres sí excede la vuelta completa: ahí el motor daría más geometría
- *   que la vista previa. No se recorta a propósito: callar el recorte sería
- *   mentir sobre la composición.
+ *   arco. El navegador, en cambio, sólo pinta los clusters cuya posición de
+ *   arco cae dentro del path (la "ventana de visibilidad"). Este adaptador
+ *   reproduce esa ventana: el texto que el motor compone y el que el
+ *   navegador pinta son el mismo. Medido en Chromium (ver
+ *   `odd/tasks/stage4-client-export-E2.md`): con la ventana aplicada, la
+ *   paridad de tinta es de píxel (0 píxeles sin pareja); sin ella, el SVG
+ *   exportado tendría texto que el cliente no ve.
+ *
+ * NORMALIZACIÓN NFC (E3.0)
+ *   El texto se normaliza a NFC **en la entrada**, y sólo ahí. La
+ *   equivalencia visual está medida para el conjunto español con las tres
+ *   fuentes del catálogo (navegador descompuesta ≡ precompuesta, 0 u de
+ *   desviación). No se generaliza a otros caracteres: si el texto
+ *   normalizado no se puede componer, el motor falla de forma explícita
+ *   (`GLYPH_MISSING`) y no se sustituye nada.
  */
 import { clampTextRadius, clampTextScale } from "../components/CurvedText";
 import { renderCurvedText } from "../typography";
@@ -102,8 +110,15 @@ export async function traceVectorText(
     );
   }
 
+  // E3.0: la normalización NFC ocurre SÓLO en la entrada (equivalencia
+  // visual medida, ver `odd/tasks/stage4-client-export-E2.md` §1.5). El
+  // motor recibe el texto ya normalizado; si aun así no se puede componer,
+  // el error del motor se propaga (sin sustitución ni normalización
+  // silenciosa).
+  const text = request.text.normalize("NFC");
+
   const result = await renderCurvedText({
-    text: request.text,
+    text,
     fontId,
     // 600 siempre: las tres fuentes del catálogo se componen en ese peso
     // (Dancing Script lo interpola en su eje variable).
@@ -120,14 +135,48 @@ export async function traceVectorText(
     throw new Error(`${result.code}: ${result.reason}`);
   }
 
-  // Un glifo sin contornos (el espacio) no produce geometría: se descarta.
-  const paths: VectorTextPath[] = result.glyphs
-    .filter((glyph) => glyph.d !== "")
-    .map((glyph) => ({ d: glyph.d }));
+  // VENTANA DE VISIBILIDAD (E3.0).
+  //
+  // El path de la vista previa es una circunferencia CERRADA de radio
+  // `baselineRadius` (longitud 2*pi*R). El navegador centra el texto en
+  // `startOffset="50%"` y pinta SÓLO los clusters cuyo CENTRO de avance
+  // cae dentro del path: un cluster cuyo avance cruza el borde se pinta a
+  // medias, y uno cuyo centro queda fuera no se pinta.
+  //
+  // La regla se midió contra el DOM real de Chromium en cinco escenarios
+  // (texto de 119 y 239 caracteres, escala 3, radios 305 y 410): la ventana
+  // `|sMid| <= pi*R` coincide exactamente con el rango de caracteres que el
+  // navegador pinta. Los criterios por inicio o por final no coinciden (ver
+  // `odd/tasks/stage4-client-export-E2.md`).
+  //
+  // Se mantiene la centración: no se desplaza el texto, sólo se descartan
+  // los clusters que el navegador no pintaría.
+  const halfWindow = Math.PI * baselineRadius;
+  const visible = result.clusters.filter(
+    (cluster) =>
+      cluster.sMidMm >= -halfWindow && cluster.sMidMm <= halfWindow,
+  );
+
+  // Cada cluster conserva su geometría; un glifo sin contornos (el espacio)
+  // no aporta tinta.
+  const visibleClusters = visible
+    .map((cluster) => ({
+      // Ángulo central del cluster (radianes, sentido horario desde arriba):
+      // sirve para desenvolver los ángulos de su tinta sin saltos.
+      centerAngle: cluster.sMidMm / baselineRadius,
+      paths: cluster.glyphs
+        .filter((glyph) => glyph.d !== "")
+        .map((glyph) => ({ d: glyph.d })),
+    }))
+    .filter((cluster) => cluster.paths.length > 0);
+
+  const paths: VectorTextPath[] = visibleClusters.flatMap(
+    (cluster) => cluster.paths,
+  );
   // Texto con sólo espacios: hay avance, pero no hay tinta que trazar.
   if (!paths.length) return null;
 
-  const inkBox = inkBoxOfPaths(paths);
+  const geometry = inkGeometry(visibleClusters, baselineRadius);
   return {
     paths,
     cropX: EXPORT_CENTER,
@@ -136,13 +185,15 @@ export async function traceVectorText(
     // El motor centra los contornos en (0,0); el exportador trabaja en el
     // espacio 900, así que la caja se traslada al centro del diseño.
     inkBox: {
-      x: inkBox.x + EXPORT_CENTER,
-      y: inkBox.y + EXPORT_CENTER,
-      width: inkBox.width,
-      height: inkBox.height,
+      x: geometry.box.x + EXPORT_CENTER,
+      y: geometry.box.y + EXPORT_CENTER,
+      width: geometry.box.width,
+      height: geometry.box.height,
     },
-    // El avance total del texto en el arco (unidades de diseño).
-    arcLength: result.totalAdvanceMm,
+    // E3.0: el arco de la TINTA visible, no el avance total. Es la misma
+    // semántica que el trazador raster (`textOutlines.ts`), de la que el
+    // exportador deriva la banda de protección del texto.
+    arcLength: geometry.arcLength,
   };
 }
 
@@ -161,79 +212,117 @@ export const vectorTextTrace: TraceTextFn = traceVectorText;
 
 type Point = { x: number; y: number };
 
+/** Un cluster visible y el ángulo central con el que se desenvuelve su tinta. */
+type VisibleCluster = {
+  /** Ángulo central del cluster, en radianes (horario desde arriba). */
+  centerAngle: number;
+  paths: readonly VectorTextPath[];
+};
+
 /**
- * Caja que envuelve los contornos de los paths (en el espacio centrado del
- * motor, es decir, con el centro del círculo base en (0,0)).
+ * Geometría de la tinta VISIBLE: caja exacta y arco angular.
  *
- * Es la caja EXACTA de las curvas: para cada segmento cuadrático y cúbico se
- * calculan sus extremos reales (no los puntos de control, que en un glifo
- * pueden quedar bastante fuera de la tinta). Una caja demasiado grande
- * agranda el viewBox del SVG exportado; una demasiado chica recorta la
- * geometría.
+ * `arcLength` es la extensión angular de la tinta, no el avance del texto:
+ * es la magnitud de la que el exportador deriva la banda de protección
+ * (`productionSvg.ts`), y el trazador raster la mide igual (sobre los píxeles
+ * de tinta) PERO sobre la tipografía de reserva que sustituye a la del
+ * catálogo, así que los dos valores no son comparables (ver el aviso de
+ * `src/export/textOutlines.ts`). Medirla sobre el avance daría una banda
+ * más ancha que el texto grabado.
+ *
+ * La caja es la EXACTA de las curvas: para cada segmento cuadrático y cúbico
+ * se calculan sus extremos reales (no los puntos de control, que en un glifo
+ * pueden quedar bastante fuera de la tinta). Una caja demasiado grande agranda
+ * el viewBox del SVG exportado; una demasiado chica recorta la geometría.
  */
-function inkBoxOfPaths(paths: readonly VectorTextPath[]): Box {
+function inkGeometry(
+  clusters: readonly VisibleCluster[],
+  radius: number,
+): { box: Box; arcLength: number } {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
-  const include = (x: number, y: number) => {
-    if (x < minX) minX = x;
-    if (x > maxX) maxX = x;
-    if (y < minY) minY = y;
-    if (y > maxY) maxY = y;
-  };
-
-  for (const { d } of paths) {
-    let current: Point = { x: 0, y: 0 };
-    let subpathStart: Point = { x: 0, y: 0 };
-    // El motor serializa con M/L/Q/C/Z y números separados por espacios. El
-    // bloque de números se detiene en cualquier otra letra mayúscula (un
-    // comando que el motor no emite) para no mezclar sus valores con los
-    // del comando anterior.
-    const commands = /([MLQCZ])([^A-Z]*)/g;
-    let match: RegExpExecArray | null;
-    while ((match = commands.exec(d)) !== null) {
-      const command = match[1];
-      const values = (match[2].match(/-?\d*\.?\d+/g) ?? []).map(Number);
-      if (command === "M") {
-        current = { x: values[0], y: values[1] };
-        subpathStart = current;
-        include(current.x, current.y);
-      } else if (command === "L") {
-        current = { x: values[0], y: values[1] };
-        include(current.x, current.y);
-      } else if (command === "Q") {
-        const control: Point = { x: values[0], y: values[1] };
-        const end: Point = { x: values[2], y: values[3] };
-        include(end.x, end.y);
-        for (const point of quadraticExtrema(current, control, end)) {
-          include(point.x, point.y);
-        }
-        current = end;
-      } else if (command === "C") {
-        const first: Point = { x: values[0], y: values[1] };
-        const second: Point = { x: values[2], y: values[3] };
-        const end: Point = { x: values[4], y: values[5] };
-        include(end.x, end.y);
-        for (const point of cubicExtrema(current, first, second, end)) {
-          include(point.x, point.y);
-        }
-        current = end;
-      } else if (command === "Z") {
-        current = subpathStart;
+  let minAngle = Infinity;
+  let maxAngle = -Infinity;
+  for (const cluster of clusters) {
+    for (const { d } of cluster.paths) {
+      for (const point of pathPoints(d)) {
+        if (point.x < minX) minX = point.x;
+        if (point.x > maxX) maxX = point.x;
+        if (point.y < minY) minY = point.y;
+        if (point.y > maxY) maxY = point.y;
+        // Ángulo horario desde arriba (0 = tope del círculo), en radianes.
+        // Se desenvuelve alrededor del centro del cluster: sin ese
+        // desarrollo, un punto que cruza los ±180° daría un salto y
+        // falsearía la extensión angular.
+        const raw = Math.atan2(point.x, -point.y);
+        const angle =
+          raw +
+          2 * Math.PI * Math.round((cluster.centerAngle - raw) / (2 * Math.PI));
+        if (angle < minAngle) minAngle = angle;
+        if (angle > maxAngle) maxAngle = angle;
       }
     }
   }
 
   if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
-    return { x: 0, y: 0, width: 0, height: 0 };
+    return { box: { x: 0, y: 0, width: 0, height: 0 }, arcLength: 0 };
   }
   return {
-    x: minX,
-    y: minY,
-    width: Math.max(0, maxX - minX),
-    height: Math.max(0, maxY - minY),
+    box: {
+      x: minX,
+      y: minY,
+      width: Math.max(0, maxX - minX),
+      height: Math.max(0, maxY - minY),
+    },
+    arcLength: (maxAngle - minAngle) * radius,
   };
+}
+
+/**
+ * Los puntos que determinan la caja de un path: los extremos de cada
+ * segmento y los extremos reales de las curvas.
+ *
+ * El motor serializa con M/L/Q/C/Z y números separados por espacios (unidades
+ * de diseño). El bloque de números se detiene en cualquier otra letra
+ * mayúscula (un comando que el motor no emite) para no mezclar sus valores
+ * con los del comando anterior.
+ */
+function pathPoints(d: string): Point[] {
+  const points: Point[] = [];
+  let current: Point = { x: 0, y: 0 };
+  const commands = /([MLQCZ])([^A-Z]*)/g;
+  let match: RegExpExecArray | null;
+  while ((match = commands.exec(d)) !== null) {
+    const command = match[1];
+    const values = (match[2].match(/-?\d*\.?\d+/g) ?? []).map(Number);
+    if (command === "M") {
+      current = { x: values[0], y: values[1] };
+      points.push(current);
+    } else if (command === "L") {
+      current = { x: values[0], y: values[1] };
+      points.push(current);
+    } else if (command === "Q") {
+      const control: Point = { x: values[0], y: values[1] };
+      const end: Point = { x: values[2], y: values[3] };
+      points.push(end);
+      for (const point of quadraticExtrema(current, control, end)) {
+        points.push(point);
+      }
+      current = end;
+    } else if (command === "C") {
+      const first: Point = { x: values[0], y: values[1] };
+      const second: Point = { x: values[2], y: values[3] };
+      const end: Point = { x: values[4], y: values[5] };
+      points.push(end);
+      for (const point of cubicExtrema(current, first, second, end)) {
+        points.push(point);
+      }
+      current = end;
+    }
+  }
+  return points;
 }
 
 /** Extremos (x e y) de una curva cuadrática de Bézier. */

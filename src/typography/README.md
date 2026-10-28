@@ -11,7 +11,7 @@ geometría y las mismas fuentes que el laboratorio físico.
 | `curved.ts` | Geometría: colocación sobre el círculo base (ángulo 0 arriba, horario), transformada rígida del contorno a mm y serialización canónica (3 decimales = 1 µm). |
 | `fonts.ts` | Catálogo: Poppins SemiBold, Lato SemiBold y Dancing Script (variable), con licencia y procedencia. |
 | `catalogue.ts` | Mapa de la familia **visible** (la que ofrece el personalizador) al identificador de fuente del motor. Devuelve `null` si la familia no está en el catálogo: nunca sustituye. Vive aquí para que `src/export` no dependa de `src/production-lab`. |
-| `index.ts` | API pública: `renderCurvedText(spec)` → glifos con su path en mm. |
+| `index.ts` | API pública: `renderCurvedText(spec)` → glifos con su path en mm, y **clusters** con sus límites de arco (E3.0: la unidad de composición, con la posición que decide si un texto queda dentro de la ventana visible del path). |
 
 ## Reglas de diseño
 

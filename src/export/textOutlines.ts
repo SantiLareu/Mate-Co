@@ -54,9 +54,35 @@ async function ensureFontLoaded(family: string): Promise<void> {
  * the existing VTracer. The result is genuine path geometry shaped by the
  * OS font engine: no <text>, no font dependency in the output.
  */
+/**
+ * AVISO (decisión del propietario en E3.0 — opción A, TRANSITORIA)
+ *
+ * Este trazador **PUEDE SUSTITUIR LA FUENTE**. Su SVG se carga como `<img>`
+ * y un SVG-cargado-como-imagen no puede pedir fuentes externas, así que el
+ * texto se dibuja con una tipografía de reserva del sistema, NO con la fuente
+ * del catálogo. Medido en E3.0 con el mismo texto: 15 580 px de tinta frente
+ * a los 32 867 px del navegador con la fuente real.
+ *
+ * Por tanto:
+ *   - **NO** debe usarse como *fallback* silencioso: si el camino vectorial
+ *     falla, la exportación debe fallar con su código explícito, no caer
+ *     aquí (política #7: VTracer es reversión explícita, nunca reserva).
+ *   - **NO** es equivalente al diseño del editor: su `arcLength` y su banda
+ *     de knockout se miden sobre la tinta de otra tipografía, así que no son
+ *     comparables con los del camino vectorial.
+ *   - La validación de catálogo y el embebido de la fuente quedan para E4
+ *     (opción A: decisión transitoria del propietario, E3.0).
+ *
+ * @see odd/tasks/stage4-client-export-E2.md (§1.4 ter) y
+ *       odd/tasks/stage4-client-export-E3.md (T5, L6)
+ */
 export async function traceTextElement(request: TextTraceRequest): Promise<TextTrace | null> {
   if (typeof document === 'undefined') throw new Error('El trazado de texto requiere un navegador.');
-  if (!request.text) return null;
+  // E3.0: `null` significa "no hay nada que dibujar" (texto vacío o sólo
+  // espacios). Cualquier OTRO fallo se propaga como error explícito: el
+  // exportador salta los trazos `null` (`productionSvg.ts`), así que un
+  // `null` por fallo borraría el texto del SVG del cliente en silencio.
+  if (!request.text.trim()) return null;
   const scale = clampTextScale(request.scale);
   const radius = clampTextRadius(request.radius, scale);
   const pathRadius = radius - 14 * scale;
@@ -93,7 +119,12 @@ export async function traceTextElement(request: TextTraceRequest): Promise<TextT
   const cropY = Math.max(0, Math.floor(EXPORT_CENTER - pathRadius - vertical));
   const cropWidth = Math.min(900 - cropX, Math.ceil(x1 - x0 + fontSize * 2));
   const cropHeight = Math.min(900 - cropY, Math.ceil(vertical * 2));
-  if (cropWidth <= 0 || cropHeight <= 0) return null;
+  if (cropWidth <= 0 || cropHeight <= 0) {
+    // E3.0: un recorte inválido es un fallo de geometría, no "no hay texto".
+    throw new Error(
+      `TEXT_GEOMETRY_INVALID: el recorte del texto es inválido (${cropWidth}x${cropHeight}); no se puede trazar.`,
+    );
+  }
 
   const curveId = 'export-curve';
   const dy = request.inverted ? ` dy="${26 * scale}"` : '';
@@ -144,7 +175,14 @@ export async function traceTextElement(request: TextTraceRequest): Promise<TextT
         maxAngle = Math.max(maxAngle, relative);
       }
     }
-    if (!ink) return null;
+    if (!ink) {
+      // E3.0: sin tinta NO es "no hay texto": es un fallo (por ejemplo, la
+      // fuente real no cargó). Devolver `null` aquí borraba el texto del
+      // SVG del cliente sin avisar.
+      throw new Error(
+        `TEXT_NO_INK: el texto «${request.text}» no produjo tinta al trazarse; no se exporta un SVG incompleto.`,
+      );
+    }
     const traced = await vectorizeWithVTracer(mask);
     const inkBox: Box = {
       x: cropX + minX / RENDER_SCALE,

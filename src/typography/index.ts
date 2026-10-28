@@ -45,6 +45,44 @@ export type TypographyGlyph = {
   d: string;
 };
 
+/**
+ * Un cluster de la composición: los caracteres que cubre y su geometría.
+ *
+ * POR QUÉ EXISTE (E3.0)
+ *   El cluster es la unidad que el navegador posiciona: un cluster puede
+ *   producir VARIOS glifos (por ejemplo una secuencia base + marca combinante,
+ *   o un cluster con kerning). Por eso la posición de arco **no** se puede
+ *   inferir sumando `TypographyGlyph.char` (ese campo se repite en cada
+ *   glifo del cluster y se contaría más de una vez): hay que exponer los
+ *   límites reales.
+ *
+ *   Con estos límites, el consumidor puede decidir qué clusters quedan
+ *   dentro de la ventana visible del path (la regla que Chromium aplica: un
+ *   cluster se pinta si el CENTRO de su avance cae dentro del path; el
+ *   avance puede cruzar el borde y entonces se pinta a medias).
+ */
+export type TypographyCluster = {
+  /** Caracteres que cubre el cluster. */
+  text: string;
+  /** Índice (UTF-16) del primer carácter del cluster en el texto original. */
+  charStart: number;
+  /** Índice (UTF-16) justo tras el último carácter del cluster. */
+  charEnd: number;
+  /** Límite de arco inicial del cluster, relativo al centro del texto (mm). */
+  sStartMm: number;
+  /** Límite de arco final del cluster, relativo al centro del texto (mm). */
+  sEndMm: number;
+  /**
+   * Arco del punto medio del avance del cluster, relativo al centro del
+   * texto (mm). Es la magnitud que decide si el cluster queda dentro de la
+   * ventana visible del path (E3.0): el navegador pinta un cluster cuyo
+   * centro cae dentro del path, aunque su avance lo cruce.
+   */
+  sMidMm: number;
+  /** Glifos del cluster, en orden de composición. */
+  glyphs: TypographyGlyph[];
+};
+
 export type TypographyResult =
   | {
       ok: true;
@@ -52,6 +90,12 @@ export type TypographyResult =
       /** Peso con el que se compuso (para fuentes variables). */
       weight: number;
       glyphs: TypographyGlyph[];
+      /**
+       * Clusters de la composición, con sus límites de arco. Es la unidad
+       * que usa el consumidor para decidir qué texto queda dentro de la
+       * ventana visible del path (E3.0).
+       */
+      clusters: TypographyCluster[];
       /** Longitud total del texto en el arco, mm. */
       totalAdvanceMm: number;
       /** Extensión angular del texto, grados. */
@@ -141,15 +185,22 @@ export async function renderCurvedText(
 function layoutShapedRun(
   run: ShapedRun,
   req: CurvedTextRequest,
-): { glyphs: TypographyGlyph[]; totalAdvanceMm: number; spanDegrees: number } {
+): {
+  glyphs: TypographyGlyph[];
+  clusters: TypographyCluster[];
+  totalAdvanceMm: number;
+  spanDegrees: number;
+} {
   const scale = req.fontSizeMm / run.unitsPerEm;
   const items = run.clusters.map((c) => ({
     advanceMm: c.advanceUnits * scale,
     kernBeforeMm: 0,
   }));  const curve = layoutCurveItems(items, req);
   const glyphs: TypographyGlyph[] = [];
+  const clusters: TypographyCluster[] = [];
   run.clusters.forEach((cluster, ci) => {
     const placement = curve.placements[ci];
+    const clusterGlyphs: TypographyGlyph[] = [];
     const rot = (placement.rotationDegrees * Math.PI) / 180;
     let penMm = 0;
     for (const g of cluster.glyphs) {
@@ -180,11 +231,25 @@ function layoutShapedRun(
             )
           : "",
       });
+      clusterGlyphs.push(glyphs[glyphs.length - 1]);
       penMm += advanceMm;
     }
+    // El cluster es la unidad que el navegador posiciona: sus límites de
+    // arco son los que permiten decidir si queda dentro de la ventana
+    // visible del path (E3.0).
+    clusters.push({
+      text: cluster.text,
+      charStart: cluster.clusterKey,
+      charEnd: cluster.clusterKey + cluster.text.length,
+      sStartMm: placement.sStartMm,
+      sEndMm: placement.sEndMm,
+      sMidMm: placement.sMidMm,
+      glyphs: clusterGlyphs,
+    });
   });
   return {
     glyphs,
+    clusters,
     totalAdvanceMm: curve.totalAdvanceMm,
     spanDegrees: curve.spanDegrees,
   };

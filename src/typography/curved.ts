@@ -21,6 +21,14 @@ export type CurveItem = {
 export type CurvePlacement = {
   /** Coordenada de arco del punto medio del avance, desde el centro (mm). */
   sMidMm: number;
+  /**
+   * Coordenada de arco del INICIO del avance del elemento, desde el centro
+   * del texto (mm). Es la posición de la pluma con la que se compone el
+   * primer carácter del elemento.
+   */
+  sStartMm: number;
+  /** Coordenada de arco del FINAL del avance del elemento (mm). */
+  sEndMm: number;
   /** Punto medio del avance sobre el círculo base (mm). */
   mid: { x: number; y: number };
   /** Rotación del eje x del elemento, grados (horario, y hacia abajo). */
@@ -90,6 +98,7 @@ export function layoutCurveItems(
   let pen = -total / 2; // coordenada de arco del siguiente origen
   for (const item of items) {
     pen += item.kernBeforeMm;
+    const sStartMm = pen;
     const sMid = pen + item.advanceMm / 2;
     const theta = toRad(req.angleDegrees) + (dir * sMid) / req.baselineRadiusMm;
     const rotation = (theta * 180) / Math.PI + (req.inverted ? 180 : 0);
@@ -97,6 +106,8 @@ export function layoutCurveItems(
     const r = toRad(rotation);
     placements.push({
       sMidMm: sMid,
+      sStartMm,
+      sEndMm: sStartMm + item.advanceMm,
       mid,
       rotationDegrees: rotation,
       origin: {

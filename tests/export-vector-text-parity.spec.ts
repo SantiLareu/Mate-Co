@@ -41,6 +41,9 @@
  *   - MÁXIMA ≤ 1,5 u (≈0,2 mm): el mismo criterio que la paridad del
  *     laboratorio (0,2 mm máximos y 0,05 mm de media) traducido a unidades
  *     de diseño.
+ *   - ARCO DE LA TINTA ≤ 1 %: `arcLength` es el arco de la tinta visible
+ *     (E3.0), no el avance del texto; se compara con el arco de la tinta que
+ *     pintó el navegador.
  */
 import { expect, test, type Page } from "@playwright/test";
 import { TYPOGRAPHY_FONTS } from "../src/typography";
@@ -58,8 +61,16 @@ const MAX_TOLERANCE_UNITS = 1.5;
 const INKBOX_TOLERANCE_UNITS = 2;
 /** La tinta de la referencia y la del adaptador deben ser la misma (mismo % de área). */
 const INK_AREA_TOLERANCE = 0.1;
-/** El avance del motor y el del navegador deben coincidir (mismo %). */
-const ADVANCE_TOLERANCE = 0.01;
+/** El arco de la tinta del motor y el del navegador deben coincidir (mismo %). */
+const INK_ARC_TOLERANCE = 0.01;
+/**
+ * Error absoluto admitido en la comparación del arco de la tinta (unidades de
+ * diseño). La referencia se mide sobre una máscara rasterizada (umbral a 2
+ * px por unidad), así que su propia incertidumbre es de ~1 u por borde: en
+ * textos cortos el error RELATIVO es grande aunque el absoluto sea minúsculo
+ * (un glifo de 15 u medido con ±1 u = 6 %).
+ */
+const INK_ARC_ABSOLUTE_TOLERANCE = 2;
 
 type PreviewFacts = {
   pathD: string;
@@ -87,6 +98,8 @@ type Metrics = {
   unpaired: number;
   referenceBox: { x: number; y: number; width: number; height: number } | null;
   adapterBox: { x: number; y: number; width: number; height: number } | null;
+  /** Arco de la tinta de la referencia (unidades de diseño). */
+  referenceArc: number;
   arcLength: number;
   pathCount: number;
   cropX: number;
@@ -308,6 +321,11 @@ async function compareInPage(
       let minY = Infinity;
       let maxX = -Infinity;
       let maxY = -Infinity;
+      // Extensión angular de la tinta de la referencia, en el MISMO marco sin
+      // rotar que el `arcLength` del adaptador (E3.0: el arco de la tinta
+      // visible, no el avance del texto).
+      let minArcAngle = Infinity;
+      let maxArcAngle = -Infinity;
       // La caja de la referencia se mide en el MISMO marco que la del
       // adaptador: sin rotar. El adaptador entrega el `inkBox` del texto SIN
       // rotar (lo gira después el exportador, `rotateBox(inkBox, angle)`),
@@ -334,6 +352,10 @@ async function compareInPage(
           if (ux > maxX) maxX = ux;
           if (uy < minY) minY = uy;
           if (uy > maxY) maxY = uy;
+          // Ángulo horario desde el tope del círculo (0° = arriba).
+          const angle = (Math.atan2(ux - 450, -(uy - 450)) * 180) / Math.PI;
+          if (angle < minArcAngle) minArcAngle = angle;
+          if (angle > maxArcAngle) maxArcAngle = angle;
         }
         const luminanceOutline =
           0.2126 * outlinePixels[i] +
@@ -401,6 +423,10 @@ async function compareInPage(
                 height: maxY - minY,
               },
         adapterBox: trace.inkBox,
+        referenceArc:
+          inkReference === 0
+            ? 0
+            : ((maxArcAngle - minArcAngle) * Math.PI * (dom.radius - 14 * dom.scale)) / 180,
         arcLength: trace.arcLength,
         pathCount: trace.paths.length,
         cropX: trace.cropX,
@@ -440,11 +466,16 @@ function expectParity(metrics: Metrics, dom: PreviewFacts) {
     metrics.maxDeviation,
     "desviación máxima (unidades de diseño)",
   ).toBeLessThanOrEqual(MAX_TOLERANCE_UNITS);
-  // El avance: el motor compone el texto como el navegador (mismo HarfBuzz).
+  // El arco de la tinta: el adaptador informa el arco de la tinta visible
+  // (E3.0), que es lo que el exportador usa para la banda de protección. Se
+  // compara con el arco de la tinta que pintó el navegador, no con el avance
+  // del texto (el avance incluye los espacios entre caracteres).
   expect(
-    Math.abs(metrics.arcLength - dom.length) / dom.length,
-    "avance (motor vs navegador)",
-  ).toBeLessThanOrEqual(ADVANCE_TOLERANCE);
+    Math.abs(metrics.arcLength - metrics.referenceArc),
+    "arco de la tinta (motor vs navegador)",
+  ).toBeLessThanOrEqual(
+    Math.max(metrics.referenceArc * INK_ARC_TOLERANCE, INK_ARC_ABSOLUTE_TOLERANCE),
+  );
   // La caja de tinta del adaptador es la de la referencia (la que el
   // navegador pintó), dentro de la tolerancia. Se comparan en el marco SIN
   // rotar: el `inkBox` del adaptador es el del texto sin rotar (el
@@ -612,14 +643,20 @@ test.describe("adaptador vectorial del cliente: paridad con la vista previa", ()
     expect(metrics.error).toContain("GLYPH_MISSING");
   });
 
-  test("texto no NFC: error explícito (sin normalizar en silencio)", async ({
+  test("texto no NFC: se normaliza y coincide con la vista previa", async ({
     page,
   }) => {
     await openEditor(page);
     await setText(page, "a\u0301");
     const dom = await readPreview(page);
+    // E3.0: el adaptador normaliza la ENTRADA a NFC. El navegador pinta la
+    // forma descompuesta y la precompuesta de forma idéntica (medido: 0 u de
+    // desviación), así que el vector normalizado coincide con la vista
+    // previa. Si la forma normalizada no se pudiera componer, el motor
+    // fallaría de forma explícita (nunca en silencio).
     const metrics = await compareInPage(page, dom, fontOf(dom));
-    expect(metrics.error).toContain("TEXT_NOT_NFC");
+    expect(metrics.error).toBeUndefined();
+    expectParity(metrics, dom);
   });
 
   test("determinismo: dos llamadas dan el mismo resultado byte a byte", async ({
