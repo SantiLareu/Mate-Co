@@ -42,7 +42,7 @@ const graphic = (overrides: Partial<UploadedGraphicElement> = {}): UploadedGraph
 });
 
 const textElement = (overrides: Partial<TextElement> = {}): TextElement => ({
-  id: 't1', text: 'SANTI', fontFamily: 'Georgia', angle: 0, radius: 374, inverted: false, scale: 1, ...overrides,
+  id: 't1', text: 'SANTI', fontFamily: 'Poppins SemiBold', angle: 0, radius: 374, inverted: false, scale: 1, ...overrides,
 });
 
 const stubTrace = (paths: string[] = ['M0 0H5V5H0Z']): TraceTextFn => async () => ({
@@ -335,7 +335,7 @@ test('real curved text traces to paths in the browser', async ({ page }) => {
   const result = await page.evaluate(async () => {
     const { buildProductionSvg } = await import('/src/export/productionSvg.ts');
     const svg = await buildProductionSvg({
-      texts: [{ id: 't1', text: 'SANTI', fontFamily: 'Georgia', angle: 0, radius: 374, inverted: false, scale: 1 }],
+      texts: [{ id: 't1', text: 'SANTI', fontFamily: 'Poppins SemiBold', angle: 0, radius: 374, inverted: false, scale: 1 }],
       icons: [],
       graphics: [],
       circularLines: 'none',
@@ -355,7 +355,7 @@ test('real inverted text traces to different browser geometry', async ({ page })
   await page.goto('/vector-lab');
   const result = await page.evaluate(async () => {
     const { buildProductionSvg } = await import('/src/export/productionSvg.ts');
-    const base = { id: 't1', text: 'SANTI', fontFamily: 'Georgia', angle: 0, radius: 374, scale: 1 } as const;
+    const base = { id: 't1', text: 'SANTI', fontFamily: 'Poppins SemiBold', angle: 0, radius: 374, scale: 1 } as const;
     const normal = await buildProductionSvg({ texts: [{ ...base, inverted: false }], icons: [], graphics: [], circularLines: 'none' });
     const inverted = await buildProductionSvg({ texts: [{ ...base, inverted: true }], icons: [], graphics: [], circularLines: 'none' });
     return { normal, inverted };

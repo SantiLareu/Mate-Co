@@ -34,6 +34,14 @@ import {
 export type { CurvedTextRequest } from "./curved";
 export type { TypographyFont, TypographyFontId } from "./fonts";
 export { TYPOGRAPHY_FONT_LIST, TYPOGRAPHY_FONTS } from "./fonts";
+/**
+ * Los bytes de una fuente del catálogo (cacheados).
+ *
+ * E4.2: el trazador raster la usa para **embeber** la fuente real en su SVG
+ * (un SVG cargado como imagen no puede pedir fuentes externas). Es el mismo
+ * cargador que usa el motor: no se duplican los datos ni las descargas.
+ */
+export { loadFontBytes } from "./fonts";
 
 /** Un glifo ya colocado sobre el arco, con su contorno en milímetros. */
 export type TypographyGlyph = {

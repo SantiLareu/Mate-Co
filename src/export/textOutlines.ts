@@ -1,5 +1,7 @@
 import { clampTextRadius, clampTextScale } from '../components/CurvedText';
 import { textFitsPath } from '../typography/textFit';
+import { catalogueFontForFamily } from '../typography/catalogue';
+import { loadFontBytes, TYPOGRAPHY_FONTS } from '../typography';
 import { vectorizeWithVTracer } from '../vectorization/vectorize/vtracerAdapter';
 import type { BinaryMask } from '../vectorization/types';
 import type { Box } from './geometry';
@@ -30,6 +32,57 @@ export type TextTrace = {
 const RENDER_SCALE = 3;
 
 const wrapAngle = (degrees: number) => ((degrees + 540) % 360) - 180;
+
+/**
+ * Data URI de la fuente del catálogo, para embeberla en el SVG del trazador.
+ *
+ * POR QUÉ HAY QUE EMBEBERLA (E4.2)
+ *   El SVG del trazador se carga como `<img>`. Un SVG cargado como imagen NO
+ *   puede pedir recursos externos: su `<text font-family="Poppins SemiBold">`
+ *   se dibujaba con la **tipografía de reserva del sistema**, y el archivo que
+ *   se descargaba tenía otra letra (medido: 15 580 px de tinta frente a los
+ *   32 867 px del navegador con la fuente real). La única forma de que el SVG
+ *   use la fuente buena es **embeberla** como data URI.
+ *
+ *   Se reutiliza el cargador del motor (`loadFontBytes`), que ya descarga y
+ *   cachea los binarios: no se duplican los datos ni se añaden dependencias.
+ */
+const fontDataUris = new Map<string, string>();
+
+async function catalogueFontDataUri(family: string): Promise<string> {
+  const fontId = catalogueFontForFamily(family);
+  if (!fontId) {
+    const available = Object.values(TYPOGRAPHY_FONTS)
+      .map((font) => font.family)
+      .join(', ');
+    throw new Error(
+      `FONT_NOT_IN_CATALOGUE: la tipografía «${family}» no está en el catálogo ` +
+      `disponible (${available}). Elegí una de las tipografías del catálogo.`,
+    );
+  }
+  const cached = fontDataUris.get(fontId);
+  if (cached) return cached;
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await loadFontBytes(fontId);
+  } catch (error) {
+    throw new Error(
+      `FONT_UNAVAILABLE: no se pudo cargar la tipografía «${family}»: ` +
+      `${(error as Error).message}`,
+    );
+  }
+  // Base64 en trozos: `String.fromCharCode(...bytes)` con un binario grande
+  // desborda la pila de argumentos.
+  const view = new Uint8Array(bytes);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let index = 0; index < view.length; index += chunk) {
+    binary += String.fromCharCode(...view.subarray(index, index + chunk));
+  }
+  const uri = `data:font/ttf;base64,${btoa(binary)}`;
+  fontDataUris.set(fontId, uri);
+  return uri;
+}
 
 /**
  * Espera a que la fuente real del catálogo esté disponible.
@@ -153,8 +206,15 @@ export async function traceTextElement(request: TextTraceRequest): Promise<TextT
 
   const curveId = 'export-curve';
   const dy = request.inverted ? ` dy="${26 * scale}"` : '';
+  // E4.2: la fuente del catálogo va EMBEBIDA en el SVG. Un SVG cargado como
+  // imagen no puede pedir fuentes externas, así que sin esto el texto se
+  // dibujaba con la tipografía de reserva del sistema (sustitución
+  // silenciosa). La familia, además, tiene que ser del catálogo: una fuente
+  // antigua se rechaza con `FONT_NOT_IN_CATALOGUE` (nunca se sustituye).
+  const fontDataUri = await catalogueFontDataUri(request.fontFamily);
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="900" height="900" viewBox="0 0 900 900">` +
+    `<style>@font-face{font-family:"${request.fontFamily}";font-weight:600;src:url(${fontDataUri}) format("truetype")}</style>` +
     `<defs><path id="${curveId}" d="M450 ${450 + pathRadius} A${pathRadius} ${pathRadius} 0 0 ${sweep} 450 ${450 - pathRadius} A${pathRadius} ${pathRadius} 0 0 ${sweep} 450 ${450 + pathRadius}"/></defs>` +
     `<rect width="900" height="900" fill="#fff"/>` +
     `<text font-family="${request.fontFamily}" font-size="${fontSize}" font-weight="600" letter-spacing="${letterSpacing}" text-anchor="middle"${dy} fill="#000">` +
