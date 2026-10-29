@@ -49,6 +49,20 @@ const wrapAngle = (degrees: number) => ((degrees + 540) % 360) - 180;
  */
 const fontDataUris = new Map<string, string>();
 
+/**
+ * El mensaje ÚNICO de "la fuente no se pudo cargar" (E4.4).
+ *
+ * Lo usan los dos caminos de exportación (raster y vectorial) para que el
+ * cliente lea exactamente lo mismo: una frase accionable en español, **sin**
+ * exponer el error interno de red (`Failed to fetch`, códigos HTTP…).
+ */
+export function fontUnavailableMessage(family: string): string {
+  return (
+    `no se pudo cargar la tipografía «${family}». ` +
+    `Revisá la conexión a internet y volvé a intentar.`
+  );
+}
+
 async function catalogueFontDataUri(family: string): Promise<string> {
   const fontId = catalogueFontForFamily(family);
   if (!fontId) {
@@ -62,11 +76,9 @@ async function catalogueFontDataUri(family: string): Promise<string> {
   let bytes: ArrayBuffer;
   try {
     bytes = await loadFontBytes(fontId);
-  } catch (error) {
-    throw new Error(
-      `FONT_UNAVAILABLE: no se pudo cargar la tipografía «${family}»: ` +
-      `${(error as Error).message}`,
-    );
+  } catch {
+    // E4.4: sin el error interno de red en el mensaje que ve el cliente.
+    throw new Error(`FONT_UNAVAILABLE: ${fontUnavailableMessage(family)}`);
   }
   // Base64 en trozos: `String.fromCharCode(...bytes)` con un binario grande
   // desborda la pila de argumentos.
@@ -98,16 +110,15 @@ async function ensureFontLoaded(family: string): Promise<void> {
   try {
     await document.fonts.load(`600 16px "${family}"`);
     await document.fonts.ready;
-  } catch (error) {
-    throw new Error(
-      `FONT_UNAVAILABLE: no se pudo cargar la tipografía «${family}»: ` +
-      `${(error as Error).message}`,
-    );
+  } catch {
+    // E4.4: mismo mensaje accionable que el resto de los caminos.
+    throw new Error(`FONT_UNAVAILABLE: ${fontUnavailableMessage(family)}`);
   }
   if (!document.fonts.check(`600 16px "${family}"`)) {
     throw new Error(
       `FONT_UNAVAILABLE: la tipografía «${family}» no está disponible en el ` +
-      `navegador: no se exporta con una tipografía de reserva.`,
+      `navegador: no se exporta con una tipografía de reserva. ` +
+      `Revisá la conexión a internet y volvé a intentar.`,
     );
   }
 }

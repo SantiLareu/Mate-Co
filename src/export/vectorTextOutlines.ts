@@ -64,6 +64,7 @@ import { clampTextRadius, clampTextScale } from "../components/CurvedText";
 import { renderCurvedText, type TypographyResultOk } from "../typography";
 import { catalogueFamilyList, catalogueFontForFamily } from "../typography/catalogue";
 import { textFitsPath } from "../typography/textFit";
+import { fontUnavailableMessage } from "./textOutlines";
 import { EXPORT_CENTER, type Box } from "./geometry";
 import type { TraceTextFn } from "./productionSvg";
 import type { TextTrace } from "./textOutlines";
@@ -110,6 +111,27 @@ export type ComposedVectorText = {
   /** Mensaje accionable en español. */
   message: string;
 };
+
+/**
+ * El mensaje que ve el cliente cuando el motor falla (E4.4).
+ *
+ * - `FONT_UNAVAILABLE`: la MISMA frase que el camino raster (fuente única en
+ *   `fontUnavailableMessage`), sin exponer el error de red.
+ * - `SHAPER_UNAVAILABLE`: el motor (WASM) no cargó; tampoco se expone el
+ *   error interno.
+ * - el resto (glifo ausente, NFC, fuente inválida): su razón, que ya es
+ *   descriptiva y no es un error de red.
+ */
+function clientFacingMessage(code: string, family: string, reason: string): string {
+  if (code === "FONT_UNAVAILABLE") return fontUnavailableMessage(family);
+  if (code === "SHAPER_UNAVAILABLE") {
+    return (
+      `el motor tipográfico no está disponible: no se puede exportar el ` +
+      `texto en este momento. Volvé a intentarlo.`
+    );
+  }
+  return reason;
+}
 
 /**
  * Compone el texto con el motor de HarfBuzz (E3.1: sin geometría de salida).
@@ -171,7 +193,14 @@ export async function composeVectorText(
     invertedDyMm: request.inverted ? 26 * scale : 0,
   });
   if (!result.ok) {
-    return { ok: false, code: result.code, message: result.reason };
+    // E4.4: el mensaje que ve el cliente es accionable y en español, y no
+    // expone el error interno (de red o del WASM). El motor sigue siendo
+    // la fuente de verdad del CÓDIGO.
+    return {
+      ok: false,
+      code: result.code,
+      message: clientFacingMessage(result.code, request.fontFamily, result.reason),
+    };
   }
   // E4.1: la geometría se devuelve tal cual; el ENCJE se comprueba en la
   // frontera de exportación (`traceVectorText` y el pre-flight), que es

@@ -88,11 +88,14 @@ export async function planVectorExport(
   // 1. El motor tiene que estar disponible (una sola carga del WASM).
   try {
     await warmUpTypography();
-  } catch (error) {
+  } catch {
+    // E4.4: sin el error interno (WASM/red) en el mensaje del cliente.
     return {
       ok: false,
       code: "SHAPER_UNAVAILABLE",
-      message: `El motor tipográfico no está disponible: ${(error as Error).message}`,
+      message:
+        `El motor tipográfico no está disponible: no se puede exportar el ` +
+        `texto en este momento. Volvé a intentarlo.`,
     };
   }
 

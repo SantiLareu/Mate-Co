@@ -1,12 +1,20 @@
 /**
- * E3.1 — Integración opt-in del exportador vectorial del cliente.
+ * E4.4 — Integración del exportador vectorial del cliente (PREDETERMINADO en
+ * esta rama experimental).
  *
  * QUÉ DEMUESTRA
- *   Que la integración del camino vectorial (`src/export/clientTextExportMode.ts`
- *   + `src/export/vectorProductionExport.ts`) NO altera el comportamiento del
- *   cliente y que el camino experimental se comporta como se documentsó:
- *     - el modo predeterminado sigue siendo el RASTER (`traceTextElement`);
- *     - el exportador por defecto produce EXACTAMENTE los mismos bytes;
+ *   Que el camino vectorial (`src/export/clientTextExportMode.ts`
+ *   + `src/export/vectorProductionExport.ts`) es el PREDETERMINADO del cliente
+ *   en esta rama experimental, y que el raster sigue intacto como REVERSIÓN
+ *   EXPLÍCITA:
+ *     - el modo predeterminado es el VECTORIAL (HarfBuzz), en cualquier
+ *       compilación;
+ *     - el raster se activa SÓLO de forma explícita: en desarrollo con el
+ *       parámetro de URL `?textExport=raster`, y al compilar con
+ *       `VITE_TEXT_EXPORT_MODE=raster`;
+ *     - el exportador por defecto (`buildProductionSvg`) conserva el trazador
+ *       raster como su PROPIO predeterminado interno: produce EXACTAMENTE los
+ *       mismos bytes;
  *     - el camino vectorial exporta la misma ESTRUCTURA (grupo de grabado,
  *       referencias de la virola, líneas decorativas, knockout) pero con
  *       contornos en lugar de texto;
@@ -21,12 +29,13 @@
  *   y `page.evaluate` con `import("/src/...")`, es decir, el código REAL del
  *   producto ejecutándose en el navegador (no una reimplementación).
  *
- * NOTA SOBRE EL ROLLO (E3.1)
- *   El modo experimental es INTERNO: la constante
- *   `VECTOR_EXPORT_EXPERIMENTAL_ENABLED` está en `false` y la única vía
- *   activable es el parámetro de URL `?textExport=vector`, que sólo existe en
- *   desarrollo (`import.meta.env.DEV`). Este archivo lo usa como vía interna
- *   de desarrollo; el cliente final nunca lo ve.
+ * NOTA SOBRE EL ROLLO (E4.4)
+ *   El modo ya NO es un opt-in experimental: el vectorial es el predeterminado
+ *   en TODOS los builds (el parámetro de URL `?textExport=…` sólo existe en
+ *   desarrollo, `import.meta.env.DEV`, pero el PREDETERMINADO es vector en
+ *   cualquier compilación). El raster es la reversión explícita: nunca un
+ *   *fallback* automático. La reversión de producción es de COMPILACIÓN
+ *   (`VITE_TEXT_EXPORT_MODE=raster`); la de desarrollo, el parámetro de URL.
  */
 import { expect, test } from "@playwright/test";
 import { TYPOGRAPHY_FONTS } from "../src/typography";
@@ -120,27 +129,40 @@ function parseSvgFacts(svg: string): SvgFacts {
 }
 
 /* ------------------------------------------------------------------ */
-/* 1 — El modo predeterminado sigue siendo el raster                   */
+/* 1 — El modo predeterminado es el vectorial (raster = reversión)     */
 /* ------------------------------------------------------------------ */
 
-test.describe("exportador vectorial del cliente: integración opt-in", () => {
-  test("el modo predeterminado sigue siendo el raster", async ({ page }) => {
+test.describe("exportador vectorial del cliente: modo predeterminado y reversión", () => {
+  test("el modo predeterminado es el vectorial y el raster es la reversión explícita", async ({
+    page,
+  }) => {
     await page.goto("/");
     const normal = await page.evaluate(async () => {
       const mode = await import("/src/export/clientTextExportMode.ts");
       return {
         resolved: mode.resolveClientTextExportMode(),
         defaultMode: mode.DEFAULT_CLIENT_TEXT_EXPORT_MODE,
-        experimentalEnabled: mode.VECTOR_EXPORT_EXPERIMENTAL_ENABLED,
+        override: mode.CLIENT_TEXT_EXPORT_MODE_OVERRIDE,
       };
     });
-    // El predeterminado NO cambia: el cliente descarga el SVG raster.
-    expect(normal.resolved).toBe("raster");
-    expect(normal.defaultMode).toBe("raster");
-    // La vía experimental está apagada a propósito (E3.1 / E5).
-    expect(normal.experimentalEnabled).toBe(false);
+    // El predeterminado es el VECTORIAL: el cliente descarga el SVG con los
+    // contornos reales de la fuente.
+    expect(normal.resolved).toBe("vector");
+    expect(normal.defaultMode).toBe("vector");
+    // Sin override de compilación: el servidor de desarrollo no fija
+    // `VITE_TEXT_EXPORT_MODE`.
+    expect(normal.override).toBeNull();
 
-    // La única vía activable es interna y sólo existe en desarrollo.
+    // El raster se activa SÓLO de forma explícita (en desarrollo, por
+    // parámetro de URL): es la reversión, nunca un *fallback* automático.
+    await page.goto("/?textExport=raster");
+    const rollback = await page.evaluate(async () => {
+      const mode = await import("/src/export/clientTextExportMode.ts");
+      return mode.resolveClientTextExportMode();
+    });
+    expect(rollback).toBe("raster");
+
+    // Y el vectorial también se puede pedir explícitamente.
     await page.goto("/?textExport=vector");
     const dev = await page.evaluate(async () => {
       const mode = await import("/src/export/clientTextExportMode.ts");
@@ -150,10 +172,12 @@ test.describe("exportador vectorial del cliente: integración opt-in", () => {
   });
 
   /* ---------------------------------------------------------------- */
-  /* 2 — El exportador por defecto no cambia                          */
+  /* 2 — El camino raster sigue siendo el predeterminado interno      */
   /* ---------------------------------------------------------------- */
 
-  test("el exportador por defecto no cambia", async ({ page }) => {
+  test("el camino raster sigue siendo el predeterminado de buildProductionSvg (reversión)", async ({
+    page,
+  }) => {
     test.setTimeout(120_000);
     await page.goto("/");
     const result = await page.evaluate(async (state) => {

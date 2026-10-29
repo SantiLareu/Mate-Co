@@ -1,15 +1,17 @@
 /**
- * E4.3 — Verificación de INTEGRACIÓN de E4 (trazador raster corregido + camino
- * vectorial experimental) y de su reversión.
+ * E4.4 — Verificación de INTEGRACIÓN de E4 (trazador raster corregido + camino
+ * vectorial) y de su reversión.
  *
- * QUÉ DEMUESTRA (el alcance de E4.3, punto por punto)
+ * QUÉ DEMUESTRA (punto por punto)
  *   1. Flujo completo en móvil: editar → confirmar → exportar, en el camino
- *      raster (el predeterminado) y en el camino vectorial experimental.
+ *      VECTORIAL (el predeterminado de la rama experimental) y en el camino
+ *      RASTER (la reversión explícita).
  *   2. Las tres tipografías del catálogo (Poppins, Lato, Dancing Script).
  *   3. Textos normales, invertidos, rotados y largos.
  *   4. Imágenes subidas, íconos y líneas decorativas conservados.
  *   5. Una tipografía antigua → error ACCIONABLE (nunca sustitución).
- *   6. Una tipografía no disponible → error explícito, sin reserva.
+ *   6. Una tipografía no disponible → error explícito y con el MISMO
+ *      mensaje accionable en los dos caminos, sin reserva.
  *   7. El camino vectorial NUNCA cae automáticamente al raster.
  *   8. La reversión entre modos NO modifica los pedidos guardados.
  *   9. Móvil (viewport de la suite) y build de producción (comprobado por
@@ -25,8 +27,8 @@
  *   `.design-confirm` → `.export-svg`, con descarga observada).
  *
  * LO QUE NO TOCA
- *   Ni el modo predeterminado, ni HarfBuzz por defecto, ni `main`, ni los
- *   trabajos confirmados, ni los snapshots.
+ *   Ni `main`, ni los trabajos confirmados, ni los snapshots, ni el catálogo
+ *   de tipografías.
  */
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
@@ -93,12 +95,17 @@ function facts(svg: string): SvgFacts {
 /* Utilidades de flujo                                                 */
 /* ------------------------------------------------------------------ */
 
-/** Aplica el modo experimental sin recargar la página (lo resuelve el exportador en cada llamada). */
+/**
+ * Fija el modo del trazador sin recargar la página (lo resuelve el exportador
+ * en cada llamada).
+ *
+ * El raster es la REVERSIÓN EXPLÍCITA (`?textExport=raster`) y el vectorial
+ * el predeterminado (`?textExport=vector`).
+ */
 async function setMode(page: Page, mode: "raster" | "vector") {
   await page.evaluate((mode) => {
     const url = new URL(window.location.href);
-    if (mode === "vector") url.searchParams.set("textExport", "vector");
-    else url.searchParams.delete("textExport");
+    url.searchParams.set("textExport", mode);
     window.history.replaceState({}, "", url.toString());
   }, mode);
 }
@@ -206,15 +213,16 @@ const FULL_DESIGN = {
 };
 
 /* ------------------------------------------------------------------ */
-/* 1 — Flujo completo en móvil (raster, el predeterminado)            */
+/* 1 — Flujo completo en móvil (raster: la reversión explícita)         */
 /* ------------------------------------------------------------------ */
 
-test.describe("E4.3 — integración de E4", () => {
-  test("el flujo completo en móvil exporta el SVG raster (el predeterminado)", async ({
+test.describe("E4.4 — integración de E4", () => {
+  test("el flujo completo en móvil exporta el SVG raster (reversión explícita)", async ({
     page,
   }) => {
     test.setTimeout(180_000);
-    await page.goto("/");
+    // El raster ya NO es el predeterminado: se pide explícitamente.
+    await page.goto("/?textExport=raster");
 
     // Móvil: el viewport de la suite y sin desbordamiento horizontal.
     const viewport = await page.evaluate(() => ({
@@ -240,22 +248,24 @@ test.describe("E4.3 — integración de E4", () => {
     expect(file.hasTextTag, "sin texto vivo").toBe(false);
     expect(file.hasFontFace, "sin fuente embebida en el archivo").toBe(false);
     expect(file.hasImage, "sin imágenes rasterizadas").toBe(false);
-    // Y es el camino raster (no el vectorial).
+    // Y es el camino raster (la reversión explícita), no el vectorial.
     expect(file.rasterSignature, "firma del trazador raster").toBe(true);
     expect(file.vectorSignature, "no es el camino vectorial").toBe(false);
   });
 
   /* ---------------------------------------------------------------- */
-  /* 2 — El camino vectorial experimental (desarrollo)                */
+  /* 2 — El camino vectorial (el predeterminado)                      */
   /* ---------------------------------------------------------------- */
 
-  test("el flujo completo en modo vectorial experimental no cae al raster", async ({
+  test("el flujo completo en modo vectorial (el predeterminado) no cae al raster", async ({
     page,
   }) => {
     test.setTimeout(180_000);
     const requests: string[] = [];
     page.on("request", (request) => requests.push(request.url()));
-    await page.goto("/?textExport=vector");
+    // Sin parámetro: el predeterminado de la rama experimental es el
+    // camino vectorial.
+    await page.goto("/");
 
     await page.locator(".add-text").click();
     await page.locator(".design-confirm").click();
@@ -520,9 +530,16 @@ test.describe("E4.3 — integración de E4", () => {
       expect(outcome.message, `${name}: código`).toContain("FONT_UNAVAILABLE");
       // Sin sustitución: el fallo es explícito y no devuelve un SVG.
       expect(outcome.message.length, `${name}: mensaje`).toBeGreaterThan(20);
+      // Los DOS caminos dicen lo MISMO, en español y con el motivo.
+      expect(outcome.message, `${name}: mensaje`).toContain("no se pudo cargar");
+      expect(outcome.message, `${name}: mensaje`).toContain(
+        "Revisá la conexión a internet y volvé a intentar.",
+      );
+      // Y el error interno de red no llega al cliente.
+      expect(outcome.message, `${name}: sin el error de red`).not.toContain(
+        "Failed to fetch",
+      );
     }
-    // El camino raster lo dice en español y con el motivo.
-    expect(result.raster.message, "raster: mensaje").toContain("no se pudo cargar");
     await page.unroute((url) => url.pathname.endsWith(".ttf"));
   });
 
@@ -559,7 +576,8 @@ test.describe("E4.3 — integración de E4", () => {
 
   test("la reversión entre modos no modifica los pedidos guardados", async ({ page }) => {
     test.setTimeout(300_000);
-    await page.goto("/");
+    // El raster es la reversión explícita: se pide con `?textExport=raster`.
+    await page.goto("/?textExport=raster");
     await page.locator(".add-text").click();
     // Ir al paso de confirmación y CONFIRMAR el diseño (eso guarda el pedido).
     await page.locator(".design-confirm").click();
@@ -570,13 +588,14 @@ test.describe("E4.3 — integración de E4", () => {
     const before = await storedJobs(page);
     expect(before.length, "hay un pedido guardado").toBeGreaterThan(2);
 
-    // 1) Raster (el predeterminado).
+    // 1) Raster (reversión explícita).
     const raster = facts((await exportThroughUi(page)).svg);
     expect(raster.rasterSignature, "primera exportación: raster").toBe(true);
     expect(await storedJobs(page), "el raster no toca los pedidos").toBe(before);
 
-    // 2) Vectorial experimental (sin recargar: el modo se resuelve en cada
-    //    exportación, así que el diseño y el pedido siguen siendo los mismos).
+    // 2) Vectorial (el predeterminado; sin recargar: el modo se resuelve en
+    //    cada exportación, así que el diseño y el pedido siguen siendo los
+    //    mismos).
     await setMode(page, "vector");
     const vector = facts((await exportThroughUi(page)).svg);
     expect(vector.vectorSignature, "segunda exportación: vectorial").toBe(true);
@@ -640,7 +659,9 @@ test.describe("E4.3 — integración de E4", () => {
     // trazado por texto.
     expect(fontRequests.length, "peticiones de la fuente durante la página").toBeLessThanOrEqual(4);
 
-    // Y el archivo exportado no lleva la fuente dentro.
+    // Y el archivo exportado no lleva la fuente dentro. La exportación sale
+    // por el camino predeterminado (vectorial), que tampoco embebe la
+    // fuente: lo que se graba son los contornos.
     await page.locator(".add-text").click();
     await page.locator(".design-confirm").click();
     await expect(page.getByRole("heading", { name: "Tu diseño" })).toBeVisible();
