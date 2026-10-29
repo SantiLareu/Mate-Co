@@ -32,3 +32,16 @@ const FAMILY_TO_ID = new Map<string, TypographyFontId>(
 export function catalogueFontForFamily(family: string): TypographyFontId | null {
   return FAMILY_TO_ID.get(family.trim()) ?? null;
 }
+
+/**
+ * Las familias del catálogo, como lista legible para los mensajes de error.
+ *
+ * E4.3: el mensaje de "fuera del catálogo" tiene que decir **qué elegir**,
+ * igual en los dos caminos de exportación (raster y vectorial). Esta lista
+ * es la única fuente de verdad de los nombres visibles.
+ */
+export function catalogueFamilyList(): string {
+  return Object.values(TYPOGRAPHY_FONTS)
+    .map((font) => font.family)
+    .join(", ");
+}

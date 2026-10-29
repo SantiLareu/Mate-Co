@@ -1,7 +1,7 @@
 import { clampTextRadius, clampTextScale } from '../components/CurvedText';
 import { textFitsPath } from '../typography/textFit';
-import { catalogueFontForFamily } from '../typography/catalogue';
-import { loadFontBytes, TYPOGRAPHY_FONTS } from '../typography';
+import { catalogueFamilyList, catalogueFontForFamily } from '../typography/catalogue';
+import { loadFontBytes } from '../typography';
 import { vectorizeWithVTracer } from '../vectorization/vectorize/vtracerAdapter';
 import type { BinaryMask } from '../vectorization/types';
 import type { Box } from './geometry';
@@ -52,12 +52,9 @@ const fontDataUris = new Map<string, string>();
 async function catalogueFontDataUri(family: string): Promise<string> {
   const fontId = catalogueFontForFamily(family);
   if (!fontId) {
-    const available = Object.values(TYPOGRAPHY_FONTS)
-      .map((font) => font.family)
-      .join(', ');
     throw new Error(
       `FONT_NOT_IN_CATALOGUE: la tipografía «${family}» no está en el catálogo ` +
-      `disponible (${available}). Elegí una de las tipografías del catálogo.`,
+      `disponible (${catalogueFamilyList()}). Elegí una de las tipografías del catálogo.`,
     );
   }
   const cached = fontDataUris.get(fontId);

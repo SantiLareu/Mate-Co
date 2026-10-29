@@ -62,7 +62,7 @@
  */
 import { clampTextRadius, clampTextScale } from "../components/CurvedText";
 import { renderCurvedText, type TypographyResultOk } from "../typography";
-import { catalogueFontForFamily } from "../typography/catalogue";
+import { catalogueFamilyList, catalogueFontForFamily } from "../typography/catalogue";
 import { textFitsPath } from "../typography/textFit";
 import { EXPORT_CENTER, type Box } from "./geometry";
 import type { TraceTextFn } from "./productionSvg";
@@ -129,7 +129,12 @@ export async function composeVectorText(
     return {
       ok: false,
       code: "FONT_NOT_IN_CATALOGUE",
-      message: `La tipografía «${request.fontFamily}» no está en el catálogo tipográfico: no se sustituye por otra.`,
+      // E4.3: el mensaje dice QUÉ elegir, igual que el del camino raster:
+      // un error accionable, no sólo un código.
+      message:
+        `La tipografía «${request.fontFamily}» no está en el catálogo ` +
+        `disponible (${catalogueFamilyList()}). Elegí una de las tipografías ` +
+        `del catálogo: no se sustituye por otra.`,
     };
   }
 
