@@ -353,6 +353,7 @@ export type LabExportCode =
   | "RASTER_ASSET_BLOCKED"
   | "UNSUPPORTED_ASSET_FEATURE"
   | "GRAPHICS_NOT_EXPORTED"
+  | "GEOMETRY_OUT_OF_BAND"
   | "INVALID_MEASURES";
 
 export type LabExportMeta = {
@@ -364,6 +365,20 @@ export type LabExportMeta = {
   /** Frame sizeFactor (mm per source unit) the export was scaled with. */
   sizeFactor: number;
   fileName: string;
+  /**
+   * E5.1b — avisos de holgura CONSERVADORA que el archivo exportado lleva
+   * consigo: un elemento cuya envolvente puede cruzar un borde (no está
+   * probado que la tinta lo cruce). No bloquean la exportación (bloquear
+   * por una envolvente conservadora rechazaría diseños válidos), pero se
+   * publican para que quien grabe las compruebe.
+   */
+  clearanceWarnings?: {
+    elementId: string;
+    elementKind: string;
+    side: "outer" | "inner";
+    signedClearanceMm: number;
+    message: string;
+  }[];
 };
 
 export type LabExportResult =

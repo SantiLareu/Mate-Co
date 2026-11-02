@@ -346,6 +346,36 @@ export function buildLabPhysicalSvg(
     );
   }
 
+  // Gate 0b (E5.1b): el grabado no puede quedar FUERA de la banda.
+  //
+  // El reporte ya distingue dos cosas y esta puerta usa sólo la probada:
+  //   - `definitely-outside`: el ancla/centro del elemento está fuera de la
+  //     banda (comparación exacta con los radios de referencia). Es una
+  //     violación DEMOSTRADA: el elemento se grabaría sobre la abertura
+  //     interior o fuera del borde exterior.
+  //   - `boundary-spill`: la envolvente conservadora puede cruzar un borde;
+  //     no está probada la colisión de tinta (el laboratorio no inventa
+  //     dimensiones de tinta). NO bloquea: se publica en `meta`.
+  //
+  // Antes de esta puerta, el archivo se exportaba "válido" y el lienzo se
+  // agrandaba para que el arte desbordado cupiera (p. ej. 77,1 mm para una
+  // virola de 75 mm): un archivo aparentemente correcto con el grabado fuera
+  // de la pieza. Ahora se bloquea con un código explícito.
+  //
+  // NO se recorta, escala ni desplaza nada: la decisión es del operador.
+  const outOfBand = (report.warnings ?? []).filter(
+    (warning) => warning.kind === "definitely-outside",
+  );
+  if (outOfBand.length > 0) {
+    return fail(
+      "GEOMETRY_OUT_OF_BAND",
+      `La composición tiene ${String(outOfBand.length)} elemento(s) fuera de la banda grabable ` +
+        `(entre ${String(report.frame.innerRadius)} mm y ${String(report.frame.outerRadius)} mm): ` +
+        `${outOfBand.map((warning) => warning.message).join(" ")} ` +
+        `No se recorta ni se reescala nada: ubicá el elemento dentro de la banda y volvé a exportar.`,
+    );
+  }
+
   // Gate 1: gate de fuentes. Un texto sólo se exporta si sus contornos
   // vectoriales están calculados (los prepara la UI, porque el motor es
   // asíncrono); si faltan, la exportación se bloquea con código explícito.
@@ -482,6 +512,19 @@ export function buildLabPhysicalSvg(
   const fileName =
     input.fileName ??
     `lab-fisico-${String(frame.outerDiameter)}x${String(frame.innerDiameter)}-${frame.strategy}.svg`;
+  // E5.1b: las holguras conservadoras que el archivo lleva consigo se
+  // publican (no bloquean): quien grabe tiene que mirarlas.
+  const clearanceWarnings = (report.warnings ?? [])
+    .filter((warning) => warning.kind === "boundary-spill")
+    .map((warning) => ({
+      elementId: warning.elementId,
+      elementKind:
+        report.clearances?.find((entry) => entry.elementId === warning.elementId)
+          ?.elementKind ?? "element",
+      side: warning.side,
+      signedClearanceMm: warning.signedClearanceMm,
+      message: warning.message,
+    }));
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${num(size)}mm" height="${num(size)}mm" viewBox="0 0 ${num(size)} ${num(size)}" data-strategy="${frame.strategy}" data-size-factor="${num(frame.sizeFactor)}">` +
     ring +
@@ -496,6 +539,7 @@ export function buildLabPhysicalSvg(
       strategy: frame.strategy,
       sizeFactor: frame.sizeFactor,
       fileName,
+      ...(clearanceWarnings.length > 0 ? { clearanceWarnings } : {}),
       ...(input.textOutlines && report.texts.length > 0
         ? { shaperVersion: input.textOutlines[report.texts[0].id]?.shaperVersion }
         : {}),

@@ -1,0 +1,507 @@
+[
+  {
+    "measure": "85-50",
+    "design": "a-texto-poppins",
+    "purpose": "Texto curvo con Poppins SemiBold",
+    "physical": "fisico/fisico-85-50-a-texto-poppins.svg",
+    "client": "cliente/cliente-85-50-a-texto-poppins.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 85,
+      "innerDiameterMm": 50,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.10047281323877069,
+      "fileName": "fisico-85-50-a-texto-poppins.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.5165484633569744,
+        "baselineRadiusMm": 34.54757908793965,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 18.166489361702126
+      }
+    ],
+    "icons": 0,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 4918,
+    "clientBytes": 5376
+  },
+  {
+    "measure": "85-50",
+    "design": "b-texto-dancing",
+    "purpose": "Texto curvo con Dancing Script",
+    "physical": "fisico/fisico-85-50-b-texto-dancing.svg",
+    "client": "cliente/cliente-85-50-b-texto-dancing.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 85,
+      "innerDiameterMm": 50,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.10047281323877069,
+      "fileName": "fisico-85-50-b-texto-dancing.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.5165484633569744,
+        "baselineRadiusMm": 34.54757908793965,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 12.533481087470449
+      }
+    ],
+    "icons": 0,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 9311,
+    "clientBytes": 10353
+  },
+  {
+    "measure": "85-50",
+    "design": "c-texto-lato-invertido",
+    "purpose": "Texto Lato SemiBold invertido y rotado 180°",
+    "physical": "fisico/fisico-85-50-c-texto-lato-invertido.svg",
+    "client": "cliente/cliente-85-50-c-texto-lato-invertido.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 85,
+      "innerDiameterMm": 50,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.10047281323877069,
+      "fileName": "fisico-85-50-c-texto-lato-invertido.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.5165484633569744,
+        "baselineRadiusMm": 30.005594355115225,
+        "angle": 180,
+        "inverted": true,
+        "paths": 11,
+        "advanceMm": 22.795020685579203
+      }
+    ],
+    "icons": 0,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 8966,
+    "clientBytes": 10729
+  },
+  {
+    "measure": "85-50",
+    "design": "d-texto-y-icono",
+    "purpose": "Texto Poppins + ícono de guitarra",
+    "physical": "fisico/fisico-85-50-d-texto-y-icono.svg",
+    "client": "cliente/cliente-85-50-d-texto-y-icono.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 85,
+      "innerDiameterMm": 50,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.10047281323877069,
+      "fileName": "fisico-85-50-d-texto-y-icono.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.5165484633569744,
+        "baselineRadiusMm": 34.54757908793965,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 18.166489361702126
+      }
+    ],
+    "icons": 1,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 5342,
+    "clientBytes": 5780
+  },
+  {
+    "measure": "85-50",
+    "design": "e-diseno-aprobado",
+    "purpose": "Diseño aprobado (silueta) sobre texto Poppins",
+    "physical": "fisico/fisico-85-50-e-diseno-aprobado.svg",
+    "client": null,
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 85,
+      "innerDiameterMm": 50,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.10047281323877069,
+      "fileName": "fisico-85-50-e-diseno-aprobado.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.5165484633569744,
+        "baselineRadiusMm": 34.54757908793965,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 18.166489361702126
+      }
+    ],
+    "icons": 0,
+    "approved": 1,
+    "lines": 2,
+    "physicalBytes": 8960,
+    "clientBytes": null
+  },
+  {
+    "measure": "80-60",
+    "design": "a-texto-poppins",
+    "purpose": "Texto curvo con Poppins SemiBold",
+    "physical": "fisico/fisico-80-60-a-texto-poppins.svg",
+    "client": "cliente/cliente-80-60-a-texto-poppins.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 80,
+      "innerDiameterMm": 60,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.09456264775413711,
+      "fileName": "fisico-80-60-a-texto-poppins.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.309692671394799,
+        "baselineRadiusMm": 34.93566491617491,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 17.097872340425532
+      }
+    ],
+    "icons": 0,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 5064,
+    "clientBytes": 5376
+  },
+  {
+    "measure": "80-60",
+    "design": "b-texto-dancing",
+    "purpose": "Texto curvo con Dancing Script",
+    "physical": "fisico/fisico-80-60-b-texto-dancing.svg",
+    "client": "cliente/cliente-80-60-b-texto-dancing.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 80,
+      "innerDiameterMm": 60,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.09456264775413711,
+      "fileName": "fisico-80-60-b-texto-dancing.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.309692671394799,
+        "baselineRadiusMm": 34.93566491617491,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 11.796217494089834
+      }
+    ],
+    "icons": 0,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 9455,
+    "clientBytes": 10353
+  },
+  {
+    "measure": "80-60",
+    "design": "c-texto-lato-invertido",
+    "purpose": "Texto Lato SemiBold invertido y rotado 180°",
+    "physical": "fisico/fisico-80-60-c-texto-lato-invertido.svg",
+    "client": "cliente/cliente-80-60-c-texto-lato-invertido.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 80,
+      "innerDiameterMm": 60,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.09456264775413711,
+      "fileName": "fisico-80-60-c-texto-lato-invertido.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.309692671394799,
+        "baselineRadiusMm": 32.34024506884666,
+        "angle": 180,
+        "inverted": true,
+        "paths": 11,
+        "advanceMm": 21.454137115839245
+      }
+    ],
+    "icons": 0,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 9069,
+    "clientBytes": 10729
+  },
+  {
+    "measure": "80-60",
+    "design": "d-texto-y-icono",
+    "purpose": "Texto Poppins + ícono de guitarra",
+    "physical": "fisico/fisico-80-60-d-texto-y-icono.svg",
+    "client": "cliente/cliente-80-60-d-texto-y-icono.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 80,
+      "innerDiameterMm": 60,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.09456264775413711,
+      "fileName": "fisico-80-60-d-texto-y-icono.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.309692671394799,
+        "baselineRadiusMm": 34.93566491617491,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 17.097872340425532
+      }
+    ],
+    "icons": 1,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 5454,
+    "clientBytes": 5780
+  },
+  {
+    "measure": "80-60",
+    "design": "e-diseno-aprobado",
+    "purpose": "Diseño aprobado (silueta) sobre texto Poppins",
+    "physical": "fisico/fisico-80-60-e-diseno-aprobado.svg",
+    "client": null,
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 80,
+      "innerDiameterMm": 60,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.09456264775413711,
+      "fileName": "fisico-80-60-e-diseno-aprobado.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.309692671394799,
+        "baselineRadiusMm": 34.93566491617491,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 17.097872340425532
+      }
+    ],
+    "icons": 0,
+    "approved": 1,
+    "lines": 2,
+    "physicalBytes": 9065,
+    "clientBytes": null
+  },
+  {
+    "measure": "75-65",
+    "design": "a-texto-poppins",
+    "purpose": "Texto curvo con Poppins SemiBold",
+    "physical": "fisico/fisico-75-65-a-texto-poppins.svg",
+    "client": "cliente/cliente-75-65-a-texto-poppins.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 75,
+      "innerDiameterMm": 65,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.08865248226950355,
+      "fileName": "fisico-75-65-a-texto-poppins.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.1028368794326244,
+        "baselineRadiusMm": 34.38863624059336,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 16.029255319148938
+      }
+    ],
+    "icons": 0,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 5079,
+    "clientBytes": 5376
+  },
+  {
+    "measure": "75-65",
+    "design": "b-texto-dancing",
+    "purpose": "Texto curvo con Dancing Script",
+    "physical": "fisico/fisico-75-65-b-texto-dancing.svg",
+    "client": "cliente/cliente-75-65-b-texto-dancing.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 75,
+      "innerDiameterMm": 65,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.08865248226950355,
+      "fileName": "fisico-75-65-b-texto-dancing.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.1028368794326244,
+        "baselineRadiusMm": 34.38863624059336,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 11.058953900709222
+      }
+    ],
+    "icons": 0,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 9510,
+    "clientBytes": 10353
+  },
+  {
+    "measure": "75-65",
+    "design": "c-texto-lato-invertido",
+    "purpose": "Texto Lato SemiBold invertido y rotado 180°",
+    "physical": "fisico/fisico-75-65-c-texto-lato-invertido.svg",
+    "client": "cliente/cliente-75-65-c-texto-lato-invertido.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 75,
+      "innerDiameterMm": 65,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.08865248226950355,
+      "fileName": "fisico-75-65-c-texto-lato-invertido.svg",
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.1028368794326244,
+        "baselineRadiusMm": 33.09092631692924,
+        "angle": 180,
+        "inverted": true,
+        "paths": 11,
+        "advanceMm": 20.113253546099294
+      }
+    ],
+    "icons": 0,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 9056,
+    "clientBytes": 10729
+  },
+  {
+    "measure": "75-65",
+    "design": "d-texto-y-icono",
+    "purpose": "Texto Poppins + ícono de guitarra",
+    "physical": "fisico/fisico-75-65-d-texto-y-icono.svg",
+    "client": "cliente/cliente-75-65-d-texto-y-icono.svg",
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 75,
+      "innerDiameterMm": 65,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.08865248226950355,
+      "fileName": "fisico-75-65-d-texto-y-icono.svg",
+      "clearanceWarnings": [
+        {
+          "elementId": "i1",
+          "elementKind": "icon",
+          "side": "inner",
+          "signedClearanceMm": -1.0818027431024397,
+          "message": "«i1» puede cruzar el borde interior (holgura firmada -1.08 mm): envolvente conservadora, no colisión de tinta probada."
+        }
+      ],
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.1028368794326244,
+        "baselineRadiusMm": 34.38863624059336,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 16.029255319148938
+      }
+    ],
+    "icons": 1,
+    "approved": 0,
+    "lines": 2,
+    "physicalBytes": 5475,
+    "clientBytes": 5780
+  },
+  {
+    "measure": "75-65",
+    "design": "e-diseno-aprobado",
+    "purpose": "Diseño aprobado (silueta) sobre texto Poppins",
+    "physical": "fisico/fisico-75-65-e-diseno-aprobado.svg",
+    "client": null,
+    "blocked": null,
+    "meta": {
+      "outerDiameterMm": 75,
+      "innerDiameterMm": 65,
+      "strategy": "outer-diameter",
+      "sizeFactor": 0.08865248226950355,
+      "fileName": "fisico-75-65-e-diseno-aprobado.svg",
+      "clearanceWarnings": [
+        {
+          "elementId": "e-approved-1",
+          "elementKind": "approved",
+          "side": "outer",
+          "signedClearanceMm": -1.0460992907801412,
+          "message": "«e-approved-1» puede cruzar el borde exterior (holgura firmada -1.05 mm): envolvente conservadora, no colisión de tinta probada."
+        },
+        {
+          "elementId": "e-approved-1",
+          "elementKind": "approved",
+          "side": "inner",
+          "signedClearanceMm": -1.0460992907801412,
+          "message": "«e-approved-1» puede cruzar el borde interior (holgura firmada -1.05 mm): envolvente conservadora, no colisión de tinta probada."
+        }
+      ],
+      "shaperVersion": "15.0.0"
+    },
+    "texts": [
+      {
+        "id": "t1",
+        "fontSizeMm": 3.1028368794326244,
+        "baselineRadiusMm": 34.38863624059336,
+        "angle": 0,
+        "inverted": false,
+        "paths": 7,
+        "advanceMm": 16.029255319148938
+      }
+    ],
+    "icons": 0,
+    "approved": 1,
+    "lines": 2,
+    "physicalBytes": 9116,
+    "clientBytes": null
+  }
+]
