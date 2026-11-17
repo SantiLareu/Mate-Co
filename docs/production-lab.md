@@ -62,7 +62,10 @@ La geometría matemática del anillo vive en `lineClearances` del reporte:
 holguras firmadas `Ro−(r+trazo/2)`, `(r−trazo/2)−Ri` sobre el trazo circular
 subyacente ANTES del recorte visual, con avisos `line-boundary-spill` (p. ej.
 100/99.5: la línea 367 invade el exterior por 0.01 mm y la 347 el interior
-por 0.01 mm, sin autoajuste). Los anillos son trazos, no discos rellenos.
+por 0.01 mm, sin autoajuste). Los anillos son trazos, no discos rellenos: el
+modelo del reporte sigue siendo un trazo circular (de ahí salen las
+holguras y los knockouts), y el EXPORTADOR lo pinta como la superficie
+cerrada equivalente (E5.3).
 
 ## Entradas, medición y serialización
 
@@ -130,11 +133,26 @@ sigue intacto; `src/export/productionSvg.ts` no se tocó.
   `src/export/geometry.ts` a centro 0 (discos: `distance = hypot(cx,cy)` en
   mm, `angleDegrees = atan2(y,x)` normalizado; bandas: `radius = anchor`,
   `halfWidth = stroke/2 + 1·sizeFactor`, `angleOffset` = ángulo diseño según
-  contrato `bandToCoveredInterval` — arco 270 = arriba = diseño 0). Círculo
-  superviviente intacto sigue `<circle>`; anillo totalmente cubierto no emite
-  nada. Delta de cap redondo documentado: el preview enmascara con caps
-  redondos, los helpers emiten límites analíticos exactos (butt-end); un pase
-  con cap redondo repintaría ~`strokeWidthMm`/2 — no se "corrige" en silencio.
+  contrato `bandToCoveredInterval` — arco 270 = arriba = diseño 0). Anillo
+  totalmente cubierto no emite nada. Delta de cap redondo documentado: el
+  preview enmascara con caps redondos, los helpers emiten límites analíticos
+  exactos (butt-end); un pase con cap redondo repintaría ~`strokeWidthMm`/2 —
+  no se "corrige" en silencio.
+- Líneas decorativas grabables como SUPERFICIES CERRADAS (E5.3): el archivo
+  exportado NO depende de `stroke-width`. Cada línea sale como `<path>`
+  relleno negro (`fill-rule="evenodd"`), sin `stroke`:
+  - anillo completo → corona (annulus): subpath exterior `R+w/2` + subpath
+    interior `R−w/2` (el agujero, por `evenodd`);
+  - arco interrumpido → banda cerrada entre el arco exterior (`R+w/2`) y el
+    interior (`R−w/2`), cerrada con segmentos radiales = extremos a tope
+    (butt), que es exactamente el final que el trazo original tenía.
+  La geometría es equivalente al trazo original: misma línea de centro,
+  curvatura, posición, longitud, grosor y extremos; los límites de knockout
+  son los mismos que usaban los arcos (`uncoveredArcs` a centro 0). Las
+  referencias de virola (`lab-ring-reference`, azul, `stroke-width="1.5"`)
+  siguen siendo un grupo HERMANO, no grabable, y conservan su trazo.
+  Comparación cuantitativa antes/después y muestra nueva:
+  `samples/e5-2/` (`MANIFEST.md`, `comparacion.md`).
 - Serialización determinista: misma entrada → bytes idénticos. Orden de
   atributos fijo; números vía `String()` con snap canónico a cero
   (`|v| < 1e-9` → `0`, tres órdenes bajo 0.001 mm) que absorbe ruido trig
@@ -151,6 +169,20 @@ sigue intacto; `src/export/productionSvg.ts` no se tocó.
   vista enmascara visualmente; la máquina podría grabar el trazo completo).
   Verificar con el grabador real antes de producción; los anillos de
   referencia son medición, no rutas de grabado.
+
+### Conversión a PDF vectorial (estado en E5.3)
+
+NO existe un exportador PDF en el producto: el laboratorio y el exportador
+del cliente producen **SVG** vectorial puro. La conversión a PDF vectorial
+sigue siendo **EXTERNA** (software del taller / Illustrator / Inkscape), y
+sigue siendo **necesaria**: el grabador no acepta SVG. Lo que cambió en
+E5.3 es que la geometría que llega a esa conversión ya no depende de que el
+software interprete `stroke-width`: las líneas decorativas son superficies
+cerradas rellenas, así que cualquier conversor que respete rellenos y
+`evenodd` las reproduce sin depender de su motor de trazos. Lo que la
+conversión externa todavía tiene que resolver (y no cambia con E5.3) es lo
+de siempre: NO escalar al material (el lienzo ya está en mm reales) y no
+grabar el grupo de referencias azules.
 
 ### Bloqueo de fuentes (evidencia L2)
 

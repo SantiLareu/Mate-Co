@@ -25,10 +25,16 @@
  *   ControlledGeometry-equivalent path serialization (d + matrix + full
  *   style, stable attr order). Envelope dashes and data-* attrs are
  *   display-only and excluded.
- * - Decorative lines are explicit interrupted arcs from exportKnockouts
- *   (uncoveredArcs at center 0); a surviving full circle stays a <circle>,
- *   a fully covered ring emits nothing. Round-cap delta documented in
- *   exportKnockouts (analytic butt-end boundaries, never silently fixed).
+ * - Decorative lines are CLOSED, BLACK, FILLED surfaces (E5.3): the engraving
+ *   must not depend on `stroke-width`. A surviving full circle becomes an
+ *   annulus path (outer R+w/2, inner R-w/2, fill-rule="evenodd" for the
+ *   hole) and every interrupted span becomes a closed band between the outer
+ *   arc (R+w/2) and the inner arc (R-w/2) closed by radial segments = butt
+ *   ends, so curvature, position, length, thickness and extremes match the
+ *   original centered stroke. A fully covered ring emits nothing. The
+ *   knockout boundaries are the same ones the arcs used (uncoveredArcs at
+ *   center 0); round-cap delta documented in exportKnockouts (analytic
+ *   butt-end boundaries, never silently fixed).
  *
  * Fail-closed gates (codes are machine-stable, reasons carry evidence):
  * 0. Null/missing report or frame, or any non-finite number the
@@ -83,7 +89,12 @@ import type {
 } from "./types";
 import { checkLabTextsBlocked } from "./exportTextOutlines";
 import { lineEngravingSegments, splitLineKnockouts } from "./exportKnockouts";
-import type { KnockoutDisk, TextKnockoutBand } from "../export/geometry";
+import { polarPoint } from "../export/geometry";
+import type {
+  AngularInterval,
+  KnockoutDisk,
+  TextKnockoutBand,
+} from "../export/geometry";
 
 export const LAB_RING_GROUP_ID = "lab-ring-reference";
 export const LAB_ENGRAVING_GROUP_ID = "lab-engraving";
@@ -266,6 +277,70 @@ function approvedMarkup(
   );
 }
 
+/**
+ * Decorative lines as closed filled surfaces (E5.3).
+ *
+ * The engraving never depends on `stroke-width`: every decorative line is
+ * emitted as a CLOSED, BLACK, FILLED path whose painted region is exactly
+ * the region swept by the original centered stroke (width w) along the same
+ * centerline (radius R). Curvature, position, length and thickness are
+ * preserved; the interruption extremes stay where the knockouts put them.
+ *
+ * - Full ring: an annulus (outer R+w/2, inner R-w/2) as ONE path with two
+ *   closed subpaths and fill-rule="evenodd" (the inner subpath is the hole).
+ * - Interrupted span: the band between the outer arc (R+w/2) and the inner
+ *   arc (R-w/2), closed by radial segments = butt ends (no round caps), so
+ *   the analytic knockout boundaries are never silently "fixed".
+ */
+const LINE_SURFACE_FILL = `fill="${LAB_ENGRAVING_STROKE}" fill-rule="evenodd"`;
+
+/**
+ * Smallest inner radius allowed in a band (defensive): an SVG arc needs a
+ * positive radius. Unreachable with real measures (stroke widths ~0.2 mm on
+ * radii ~30 mm), it keeps the file valid instead of emitting rx="0".
+ */
+const MIN_BAND_INNER_RADIUS_MM = 1e-6;
+
+/** Closed circle subpath from exact literals (no trig, no rounding). */
+function circleSubpath(radius: number): string {
+  const r = num(radius);
+  return `M${r} 0 A${r} ${r} 0 1 0 ${num(-radius)} 0 A${r} ${r} 0 1 0 ${r} 0 Z`;
+}
+
+/** Annulus of a whole ring: outer circle + inner hole (evenodd). */
+function annulusPath(radius: number, halfWidth: number): string {
+  const outer = radius + halfWidth;
+  const inner = Math.max(MIN_BAND_INNER_RADIUS_MM, radius - halfWidth);
+  return `${circleSubpath(outer)} ${circleSubpath(inner)}`;
+}
+
+/**
+ * Closed band of one interrupted span. Same angle convention as
+ * export/geometry.arcPath: the interval angle `a` is the standard angle of
+ * the point (polarPoint(a + 90)), so the band sits exactly where the
+ * interrupted arc used to be.
+ */
+function arcBandPath(
+  radius: number,
+  halfWidth: number,
+  span: AngularInterval,
+): string {
+  const outer = radius + halfWidth;
+  const inner = Math.max(MIN_BAND_INNER_RADIUS_MM, radius - halfWidth);
+  const outerStart = polarPoint(span.start + 90, outer, 0);
+  const outerEnd = polarPoint(span.end + 90, outer, 0);
+  const innerEnd = polarPoint(span.end + 90, inner, 0);
+  const innerStart = polarPoint(span.start + 90, inner, 0);
+  const largeArc = span.end - span.start > 180 ? 1 : 0;
+  return (
+    `M${num(outerStart.x)} ${num(outerStart.y)}` +
+    ` A${num(outer)} ${num(outer)} 0 ${largeArc} 1 ${num(outerEnd.x)} ${num(outerEnd.y)}` +
+    ` L${num(innerEnd.x)} ${num(innerEnd.y)}` +
+    ` A${num(inner)} ${num(inner)} 0 ${largeArc} 0 ${num(innerStart.x)} ${num(innerStart.y)}` +
+    ` Z`
+  );
+}
+
 function lineMarkup(
   line: PlacedCircularLine,
   disks: KnockoutDisk[],
@@ -273,15 +348,17 @@ function lineMarkup(
   half: number,
 ): string {
   const engraving = lineEngravingSegments(line, disks, bands);
-  const paint = `fill="none" stroke="${LAB_ENGRAVING_STROKE}" stroke-width="${num(line.strokeWidthMm)}"`;
+  const halfWidth = line.strokeWidthMm / 2;
+  const place = `transform="translate(${num(half)} ${num(half)})"`;
   if (engraving.full) {
-    return `<circle cx="${num(half)}" cy="${num(half)}" r="${num(line.radiusMm)}" ${paint}/>`;
+    const d = annulusPath(line.radiusMm, halfWidth);
+    return `<path d="${escapeXmlAttr(d)}" ${LINE_SURFACE_FILL} ${place}/>`;
   }
-  return engraving.paths
-    .map(
-      (d) =>
-        `<path d="${escapeXmlAttr(d)}" ${paint} transform="translate(${num(half)} ${num(half)})"/>`,
-    )
+  return engraving.spans
+    .map((span) => {
+      const d = arcBandPath(line.radiusMm, halfWidth, span);
+      return `<path d="${escapeXmlAttr(d)}" ${LINE_SURFACE_FILL} ${place}/>`;
+    })
     .join("");
 }
 

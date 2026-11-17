@@ -1,0 +1,422 @@
+{
+  "baseCommit": "818cfbd",
+  "strategy": "outer-diameter",
+  "comparabilidadE51": [
+    {
+      "measure": "85-50",
+      "comparable": true,
+      "e51File": "samples/e5-1/fisico/fisico-85-50-d-texto-y-icono.svg",
+      "e51Strategy": "outer-diameter",
+      "e51SizeFactor": 0.10047281323877069,
+      "e51BandWidthsMm": [
+        0.20094562647754138
+      ],
+      "e51LineRadiiMm": [
+        32.35,
+        35.02
+      ],
+      "e52BandWidthsMm": [
+        0.20094562647754138
+      ],
+      "e52LineRadiiMm": [
+        32.347328244274806,
+        35.01908396946565
+      ]
+    },
+    {
+      "measure": "80-60",
+      "comparable": true,
+      "e51File": "samples/e5-1/fisico/fisico-80-60-d-texto-y-icono.svg",
+      "e51Strategy": "outer-diameter",
+      "e51SizeFactor": 0.09456264775413711,
+      "e51BandWidthsMm": [
+        0.18912529550827423
+      ],
+      "e51LineRadiiMm": [
+        34.2,
+        35.73
+      ],
+      "e52BandWidthsMm": [
+        0.18912529550827423
+      ],
+      "e52LineRadiiMm": [
+        34.19847328244275,
+        35.725190839694655
+      ]
+    },
+    {
+      "measure": "75-65",
+      "comparable": true,
+      "e51File": "samples/e5-1/fisico/fisico-75-65-d-texto-y-icono.svg",
+      "e51Strategy": "outer-diameter",
+      "e51SizeFactor": 0.08865248226950355,
+      "e51BandWidthsMm": [
+        0.1773049645390071
+      ],
+      "e51LineRadiiMm": [
+        34.6,
+        35.36
+      ],
+      "e52BandWidthsMm": [
+        0.1773049645390071
+      ],
+      "e52LineRadiiMm": [
+        34.599236641221374,
+        35.36259541984733
+      ]
+    }
+  ],
+  "samples": [
+    {
+      "measure": "85-50",
+      "outer": 85,
+      "inner": 50,
+      "sizeFactor": 0.10047281323877069,
+      "canvasMm": 85,
+      "ringRadiiMm": {
+        "antes": [
+          42.5,
+          25
+        ],
+        "despues": [
+          42.5,
+          25
+        ]
+      },
+      "antesFile": "antes-85-50.svg",
+      "despuesFile": "despues-85-50.svg",
+      "clearanceWarnings": [],
+      "lines": [
+        {
+          "lineId": "line-347",
+          "outerRadiusMm": 32.44780105751358,
+          "innerRadiusMm": 32.24685543103603,
+          "centerlineRadiusMm": 32.347328244274806,
+          "bandWidthMm": 0.200945626477548,
+          "extentDeg": 347.7345486335339,
+          "gapDeg": 12.265451366466095,
+          "arcLengthMm": 196.3195837828744,
+          "areaFilledMm2": 39.449561753061545,
+          "areaStrokedMm2": 39.45101864440797,
+          "relativeAreaDifference": -0.000036929118600292305,
+          "antes": {
+            "centerlineRadiusMm": 32.35,
+            "bandWidthMm": 0.20094562647754138,
+            "extentDeg": 347.7186705120025,
+            "gapDeg": 12.281329487997482,
+            "arcLengthMm": 196.32683395981846,
+            "areaStrokedMm2": 39.45101864440797,
+            "radiusDeltaMm": 0.0026717557251956237,
+            "extentDeltaDeg": -0.01587812153138657,
+            "widthDeltaMm": -6.6058269965196814e-15,
+            "arcLengthDeltaMm": 0.007250176944069153
+          },
+          "despues": {
+            "outerRadiusMm": 32.44780105751358,
+            "innerRadiusMm": 32.24685543103603,
+            "centerlineRadiusMm": 32.347328244274806,
+            "bandWidthMm": 0.200945626477548,
+            "extentDeg": 347.7345486335339,
+            "gapDeg": 12.265451366466095,
+            "arcLengthMm": 196.3195837828744,
+            "areaFilledMm2": 39.449561753061545,
+            "innerExtentDeg": 347.73454863353396
+          },
+          "engine": {
+            "radiusMm": 32.347328244274806,
+            "strokeWidthMm": 0.20094562647754138,
+            "outerRadiusMm": 32.44780105751358,
+            "innerRadiusMm": 32.24685543103603,
+            "areaFilledMm2": 39.449561753061545,
+            "areaStrokedMm2": 39.44956175305987,
+            "relativeAreaDifference": 4.2506957793105796e-14
+          }
+        },
+        {
+          "lineId": "line-367",
+          "outerRadiusMm": 35.11955678270442,
+          "innerRadiusMm": 34.91861115622687,
+          "centerlineRadiusMm": 35.01908396946565,
+          "bandWidthMm": 0.200945626477548,
+          "extentDeg": 347.25017882827393,
+          "gapDeg": 12.749821171726069,
+          "arcLengthMm": 212.23872463455555,
+          "areaFilledMm2": 42.648443484486414,
+          "areaStrokedMm2": 42.64876650254407,
+          "relativeAreaDifference": -0.0000075739132487521265,
+          "antes": {
+            "centerlineRadiusMm": 35.02,
+            "bandWidthMm": 0.20094562647754138,
+            "extentDeg": 347.24372567631144,
+            "gapDeg": 12.756274323688558,
+            "arcLengthMm": 212.24033212442518,
+            "areaStrokedMm2": 42.64876650254407,
+            "radiusDeltaMm": 0.0009160305343556274,
+            "extentDeltaDeg": -0.006453151962489301,
+            "widthDeltaMm": -6.6058269965196814e-15,
+            "arcLengthDeltaMm": 0.0016074898696274431
+          },
+          "despues": {
+            "outerRadiusMm": 35.11955678270442,
+            "innerRadiusMm": 34.91861115622687,
+            "centerlineRadiusMm": 35.01908396946565,
+            "bandWidthMm": 0.200945626477548,
+            "extentDeg": 347.25017882827393,
+            "gapDeg": 12.749821171726069,
+            "arcLengthMm": 212.23872463455555,
+            "areaFilledMm2": 42.648443484486414,
+            "innerExtentDeg": 347.25017882827393
+          },
+          "engine": {
+            "radiusMm": 35.01908396946565,
+            "strokeWidthMm": 0.20094562647754138,
+            "outerRadiusMm": 35.11955678270442,
+            "innerRadiusMm": 34.91861115622687,
+            "areaFilledMm2": 42.648443484486414,
+            "areaStrokedMm2": 42.64844348448516,
+            "relativeAreaDifference": 2.932241162312779e-14
+          }
+        }
+      ]
+    },
+    {
+      "measure": "80-60",
+      "outer": 80,
+      "inner": 60,
+      "sizeFactor": 0.09456264775413711,
+      "canvasMm": 80,
+      "ringRadiiMm": {
+        "antes": [
+          40,
+          30
+        ],
+        "despues": [
+          40,
+          30
+        ]
+      },
+      "antesFile": "antes-80-60.svg",
+      "despuesFile": "despues-80-60.svg",
+      "clearanceWarnings": [],
+      "lines": [
+        {
+          "lineId": "line-347",
+          "outerRadiusMm": 34.293035930196886,
+          "innerRadiusMm": 34.10391063468861,
+          "centerlineRadiusMm": 34.19847328244275,
+          "bandWidthMm": 0.18912529550827628,
+          "extentDeg": 348.14682272625686,
+          "gapDeg": 11.853177273743142,
+          "arcLengthMm": 207.80046831639166,
+          "areaFilledMm2": 39.30032497709576,
+          "areaStrokedMm2": 39.30267447861022,
+          "relativeAreaDifference": -0.00005977968536817211,
+          "antes": {
+            "centerlineRadiusMm": 34.2,
+            "bandWidthMm": 0.18912529550827423,
+            "extentDeg": 348.15209357382315,
+            "gapDeg": 11.847906426176849,
+            "arcLengthMm": 207.81289130565156,
+            "areaStrokedMm2": 39.30267447861022,
+            "radiusDeltaMm": 0.001526717557254642,
+            "extentDeltaDeg": 0.005270847566293924,
+            "widthDeltaMm": -2.0539125955565396e-15,
+            "arcLengthDeltaMm": 0.012422989259903261
+          },
+          "despues": {
+            "outerRadiusMm": 34.293035930196886,
+            "innerRadiusMm": 34.10391063468861,
+            "centerlineRadiusMm": 34.19847328244275,
+            "bandWidthMm": 0.18912529550827628,
+            "extentDeg": 348.14682272625686,
+            "gapDeg": 11.853177273743142,
+            "arcLengthMm": 207.80046831639166,
+            "areaFilledMm2": 39.30032497709576,
+            "innerExtentDeg": 348.14682272625686
+          },
+          "engine": {
+            "radiusMm": 34.19847328244275,
+            "strokeWidthMm": 0.18912529550827423,
+            "outerRadiusMm": 34.293035930196886,
+            "innerRadiusMm": 34.10391063468861,
+            "areaFilledMm2": 39.30032497709576,
+            "areaStrokedMm2": 39.30032497709535,
+            "relativeAreaDifference": 1.0486294629396653e-14
+          }
+        },
+        {
+          "lineId": "line-367",
+          "outerRadiusMm": 35.81975348744879,
+          "innerRadiusMm": 35.63062819194052,
+          "centerlineRadiusMm": 35.725190839694655,
+          "bandWidthMm": 0.18912529550827628,
+          "extentDeg": 348.0918108091363,
+          "gapDeg": 11.908189190863709,
+          "arcLengthMm": 217.0429737857368,
+          "areaFilledMm2": 41.04831655522245,
+          "areaStrokedMm2": 41.05217715812132,
+          "relativeAreaDifference": -0.00009404136798879612,
+          "antes": {
+            "centerlineRadiusMm": 35.73,
+            "bandWidthMm": 0.18912529550827423,
+            "extentDeg": 348.0776923055244,
+            "gapDeg": 11.922307694475592,
+            "arcLengthMm": 217.06338672356648,
+            "areaStrokedMm2": 41.05217715812132,
+            "radiusDeltaMm": 0.004809160305342175,
+            "extentDeltaDeg": -0.014118503611882716,
+            "widthDeltaMm": -2.0539125955565396e-15,
+            "arcLengthDeltaMm": 0.02041293782968978
+          },
+          "despues": {
+            "outerRadiusMm": 35.81975348744879,
+            "innerRadiusMm": 35.63062819194052,
+            "centerlineRadiusMm": 35.725190839694655,
+            "bandWidthMm": 0.18912529550827628,
+            "extentDeg": 348.0918108091363,
+            "gapDeg": 11.908189190863709,
+            "arcLengthMm": 217.0429737857368,
+            "areaFilledMm2": 41.04831655522245,
+            "innerExtentDeg": 348.0918108091363
+          },
+          "engine": {
+            "radiusMm": 35.725190839694655,
+            "strokeWidthMm": 0.18912529550827423,
+            "outerRadiusMm": 35.81975348744879,
+            "innerRadiusMm": 35.63062819194052,
+            "areaFilledMm2": 41.04831655522245,
+            "areaStrokedMm2": 41.04831655522209,
+            "relativeAreaDifference": 8.828054976387338e-15
+          }
+        }
+      ]
+    },
+    {
+      "measure": "75-65",
+      "outer": 75,
+      "inner": 65,
+      "sizeFactor": 0.08865248226950355,
+      "canvasMm": 76.02,
+      "ringRadiiMm": {
+        "antes": [
+          37.5,
+          32.5
+        ],
+        "despues": [
+          37.5,
+          32.5
+        ]
+      },
+      "antesFile": "antes-75-65.svg",
+      "despuesFile": "despues-75-65.svg",
+      "clearanceWarnings": [
+        {
+          "elementId": "i1",
+          "elementKind": "icon",
+          "side": "outer",
+          "signedClearanceMm": -0.5092836591329757,
+          "message": "«i1» puede cruzar el borde exterior (holgura firmada -0.51 mm): envolvente conservadora, no colisión de tinta probada."
+        },
+        {
+          "elementId": "i1",
+          "elementKind": "icon",
+          "side": "inner",
+          "signedClearanceMm": -0.3184439644764865,
+          "message": "«i1» puede cruzar el borde interior (holgura firmada -0.32 mm): envolvente conservadora, no colisión de tinta probada."
+        }
+      ],
+      "lines": [
+        {
+          "lineId": "line-347",
+          "outerRadiusMm": 34.687889123490876,
+          "innerRadiusMm": 34.51058415895187,
+          "centerlineRadiusMm": 34.599236641221374,
+          "bandWidthMm": 0.17730496453900457,
+          "extentDeg": 348.6386559447019,
+          "gapDeg": 11.361344055298105,
+          "arcLengthMm": 210.53263367424552,
+          "areaFilledMm2": 37.32848114791538,
+          "areaStrokedMm2": 37.33101300176425,
+          "relativeAreaDifference": -0.00006782172904724365,
+          "antes": {
+            "centerlineRadiusMm": 34.6,
+            "bandWidthMm": 0.1773049645390071,
+            "extentDeg": 348.6546105003725,
+            "gapDeg": 11.345389499627515,
+            "arcLengthMm": 210.54691332995034,
+            "areaStrokedMm2": 37.33101300176425,
+            "radiusDeltaMm": 0.000763358778627321,
+            "extentDeltaDeg": 0.015954555670589343,
+            "widthDeltaMm": 2.525757381022231e-15,
+            "arcLengthDeltaMm": 0.0142796557048257
+          },
+          "despues": {
+            "outerRadiusMm": 34.687889123490876,
+            "innerRadiusMm": 34.51058415895187,
+            "centerlineRadiusMm": 34.599236641221374,
+            "bandWidthMm": 0.17730496453900457,
+            "extentDeg": 348.6386559447019,
+            "gapDeg": 11.361344055298105,
+            "arcLengthMm": 210.53263367424552,
+            "areaFilledMm2": 37.32848114791538,
+            "innerExtentDeg": 348.6386559447019
+          },
+          "engine": {
+            "radiusMm": 34.599236641221374,
+            "strokeWidthMm": 0.1773049645390071,
+            "outerRadiusMm": 34.687889123490876,
+            "innerRadiusMm": 34.51058415895187,
+            "areaFilledMm2": 37.32848114791538,
+            "areaStrokedMm2": 37.32848114791587,
+            "relativeAreaDifference": -1.313405937229895e-14
+          }
+        },
+        {
+          "lineId": "line-367",
+          "outerRadiusMm": 35.45124790211683,
+          "innerRadiusMm": 35.27394293757783,
+          "centerlineRadiusMm": 35.36259541984733,
+          "bandWidthMm": 0.17730496453900457,
+          "extentDeg": 348.6799231882264,
+          "gapDeg": 11.320076811773617,
+          "arcLengthMm": 215.20305962349877,
+          "areaFilledMm2": 38.15657085523016,
+          "areaStrokedMm2": 38.15293851331804,
+          "relativeAreaDifference": 0.00009520477461645822,
+          "antes": {
+            "centerlineRadiusMm": 35.36,
+            "bandWidthMm": 0.1773049645390071,
+            "extentDeg": 348.67232098390417,
+            "gapDeg": 11.327679016095829,
+            "arcLengthMm": 215.18257321511373,
+            "areaStrokedMm2": 38.15293851331804,
+            "radiusDeltaMm": -0.0025954198473314705,
+            "extentDeltaDeg": -0.007602204322211037,
+            "widthDeltaMm": 2.525757381022231e-15,
+            "arcLengthDeltaMm": -0.020486408385039567
+          },
+          "despues": {
+            "outerRadiusMm": 35.45124790211683,
+            "innerRadiusMm": 35.27394293757783,
+            "centerlineRadiusMm": 35.36259541984733,
+            "bandWidthMm": 0.17730496453900457,
+            "extentDeg": 348.6799231882264,
+            "gapDeg": 11.320076811773617,
+            "arcLengthMm": 215.20305962349877,
+            "areaFilledMm2": 38.15657085523016,
+            "innerExtentDeg": 348.6799231882264
+          },
+          "engine": {
+            "radiusMm": 35.36259541984733,
+            "strokeWidthMm": 0.1773049645390071,
+            "outerRadiusMm": 35.45124790211683,
+            "innerRadiusMm": 35.27394293757783,
+            "areaFilledMm2": 38.15657085523016,
+            "areaStrokedMm2": 38.15657085523028,
+            "relativeAreaDifference": -3.1657002286058297e-15
+          }
+        }
+      ]
+    }
+  ]
+}

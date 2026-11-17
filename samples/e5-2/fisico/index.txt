@@ -1,0 +1,13 @@
+# E5.3 — índice de las muestras antes/después (líneas decorativas)
+# Generado por samples/e5-2/generate.mjs — no editar a mano.
+# Estrategia de tamaño: outer-diameter — la MISMA que samples/e5-1/generate.mjs
+# (ancho de banda 0,20 / 0,19 / 0,18 mm; data-size-factor 0,10047 / 0,09456 / 0,08865).
+# La ÚNICA diferencia entre cada par antes/después es la serialización
+# de las líneas decorativas (trazo -> superficie cerrada rellena).
+# Formato: <archivo>  <bytes>  <sha256-16>
+antes-85-50.svg  1024  8f1d58e543ba211a
+despues-85-50.svg  1357  7504946f36bf8270
+antes-80-60.svg  1004  2bf6af2216f9e62d
+despues-80-60.svg  1343  1e75a4a8a98ee5bf
+antes-75-65.svg  1045  d7dbdefb8b21ee2e
+despues-75-65.svg  1381  0b2877d7ef235e7a

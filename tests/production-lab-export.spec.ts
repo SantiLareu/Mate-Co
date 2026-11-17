@@ -29,6 +29,106 @@ const reportOrThrow = (input: ReportInput): PhysicalReport => {
   return result.report;
 };
 
+/*
+ * Helpers de inspección del SVG exportado (E5.3). Leen el ARCHIVO como
+ * string: sin DOM, sin depender de la implementación que los genera.
+ */
+type PathCommand = { op: string; args: number[] };
+
+/** Todos los <path .../> autocerrados del archivo, en orden de aparición. */
+const svgPathTags = (svg: string): string[] =>
+  svg.match(/<path\b[^>]*\/>/g) ?? [];
+
+const pathData = (tag: string): string => / d="([^"]*)"/.exec(tag)?.[1] ?? "";
+
+/** Comandos absolutos (M/L/A/Z) de un `d` exportado. */
+const parsePathCommands = (d: string): PathCommand[] => {
+  const commands: PathCommand[] = [];
+  const pattern = /([MLAZ])([^MLAZ]*)/g;
+  let match = pattern.exec(d);
+  while (match !== null) {
+    const args = (
+      match[2].match(/-?\d*\.?\d+(?:[eE][-+]?\d+)?/g) ?? []
+    ).map(Number);
+    commands.push({ op: match[1], args });
+    match = pattern.exec(d);
+  }
+  return commands;
+};
+
+/** Ángulo estándar (0..360) de un punto respecto del centro de la virola. */
+const polarAngleDeg = (x: number, y: number): number =>
+  ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+
+const polarRadiusMm = (x: number, y: number): number => Math.hypot(x, y);
+
+/**
+ * Centro y radio REALES de un arco SVG (parámetros del endpoint, spec SVG):
+ * sirve para comprobar, sin mirar la implementación, que la curvatura y la
+ * posición del trazo no se desvían (el arco debe quedar sobre la circunferencia
+ * del centro de la virola, con el radio pedido y sin escalado del radio).
+ */
+const svgArcCenter = (
+  start: { x: number; y: number },
+  args: number[],
+): { cx: number; cy: number; rx: number; ry: number; lambda: number } => {
+  const [rxIn, ryIn, , largeArc, sweep, x2, y2] = args;
+  let rx = Math.abs(rxIn);
+  let ry = Math.abs(ryIn);
+  const x1p = (start.x - x2) / 2;
+  const y1p = (start.y - y2) / 2;
+  const lambda = (x1p * x1p) / (rx * rx) + (y1p * y1p) / (ry * ry);
+  const scale = lambda > 1 ? Math.sqrt(lambda) : 1;
+  rx *= scale;
+  ry *= scale;
+  const sign = largeArc === sweep ? -1 : 1;
+  const numerator = rx * rx * ry * ry - rx * rx * y1p * y1p - ry * ry * x1p * x1p;
+  const denominator = rx * rx * y1p * y1p + ry * ry * x1p * x1p;
+  const coefficient = sign * Math.sqrt(Math.max(0, numerator / denominator));
+  return {
+    cx: coefficient * ((rx * y1p) / ry) + (start.x + x2) / 2,
+    cy: coefficient * (-(ry * x1p) / rx) + (start.y + y2) / 2,
+    rx,
+    ry,
+    lambda,
+  };
+};
+
+/** Centros reales de todos los arcos de un `d`, en orden. */
+const walkArcCenters = (
+  commands: PathCommand[],
+): { cx: number; cy: number; rx: number; ry: number; lambda: number }[] => {
+  const centers: {
+    cx: number;
+    cy: number;
+    rx: number;
+    ry: number;
+    lambda: number;
+  }[] = [];
+  let current = { x: 0, y: 0 };
+  for (const command of commands) {
+    if (command.op === "M") {
+      current = { x: command.args[0], y: command.args[1] };
+    } else if (command.op === "L") {
+      current = { x: command.args[0], y: command.args[1] };
+    } else if (command.op === "A") {
+      centers.push(svgArcCenter(current, command.args));
+      current = { x: command.args[5], y: command.args[6] };
+    }
+  }
+  return centers;
+};
+
+/**
+ * Recorta el grupo de grabado. Uso previsto: composiciones SIN grupos
+ * anidados (sólo líneas), donde el primer </g> es el del propio grupo.
+ */
+const engravingMarkup = (svg: string): string => {
+  const start = svg.indexOf('<g id="lab-engraving">');
+  if (start < 0) throw new Error("no engraving group");
+  return svg.slice(start, svg.indexOf("</g>", start));
+};
+
 const sparkIcon = (id: string, angle: number, radius: number): DesignIcon => ({
   id,
   type: "icon",
@@ -266,10 +366,25 @@ test("E1 single line interrupted by one icon disk: exact uncovered arc", () => {
     },
   });
   if (!result.ok) throw new Error(`export rejected: ${result.code}`);
-  expect(result.svg).toContain(
-    'd="M34.83 2.98 A34.96 34.96 0 1 1 34.83 -2.98"',
+  // E5.3: la línea decorativa es una SUPERFICIE cerrada y rellena (no un
+  // trazo). La geometría del arco no cambia: mismos extremos, misma longitud.
+  const linePaths = svgPathTags(result.svg).filter((tag) =>
+    tag.includes('fill="#000000"'),
   );
-  expect(result.svg).toContain('stroke-width="0.15267175572519084"');
+  expect(linePaths).toHaveLength(1);
+  expect(linePaths[0]).not.toContain("stroke");
+  expect(pathData(linePaths[0]).endsWith("Z")).toBe(true);
+  const lineCommands = parsePathCommands(pathData(linePaths[0]));
+  expect(lineCommands.map((command) => command.op)).toEqual([
+    "M",
+    "A",
+    "L",
+    "A",
+    "Z",
+  ]);
+  // Arcos exterior (R+w/2) e interior (R-w/2): el grosor es el del trazo.
+  expect(lineCommands[1].args[0]).toBeCloseTo(35.0381679389313, 10);
+  expect(lineCommands[3].args[0]).toBeCloseTo(34.88549618320611, 10);
   // No text band exists when texts are absent.
   expect(
     report.lineKnockouts.some((knockout) => knockout.kind === "text-band"),
@@ -293,9 +408,14 @@ test("E1 single line interrupted by one icon disk: exact uncovered arc", () => {
   });
   if (!doubleResult.ok)
     throw new Error(`export rejected: ${doubleResult.code}`);
+  // Ambos anillos exports como superficies rellenas (una por línea).
   expect(
-    doubleResult.svg.split('stroke-width="0.15267175572519084"').length - 1,
+    svgPathTags(doubleResult.svg).filter((tag) =>
+      tag.includes('fill="#000000"'),
+    ).length,
   ).toBe(2);
+  // Ninguna línea decorativa depende de stroke-width.
+  expect(doubleResult.svg).not.toContain('stroke-width="0.15267175572519084"');
 });
 
 test("E1 knockout converters: disk descriptor + band interval math", () => {
@@ -1327,4 +1447,272 @@ test("E3 asset root preserveAspectRatio/transform fail closed (preview parity)",
   expect(verdict.transformEmbed.ok).toBe(false);
   expect(verdict.meetEmbed.ok).toBe(true);
   await e2ClearJobsDb(page);
+});
+
+/*
+ * E5.3 — Líneas decorativas como superficies vectoriales cerradas y rellenas.
+ *
+ * Requisito (verbatim): "Convertir esos trazos en superficies vectoriales
+ * cerradas y rellenas, con geometría equivalente al espesor original.
+ * Preservar curvatura, posición, longitud, grosor y extremos. Asegurar que
+ * las líneas grabables no dependan de stroke-width. Conservar las referencias
+ * de virola separadas y no grabables. Mantener intactos los contornos
+ * HarfBuzz, íconos, imágenes aprobadas y transformaciones."
+ *
+ * Geometría (calculada a mano, no derivada de la implementación):
+ * 80/60 B: sizeFactor = 10/131 = 0.07633587786259542
+ *   R = 30 + 65*10/131 = 34.961832061068705
+ *   w = 2*sizeFactor   = 0.15267175572519084
+ *   R + w/2 = 35.0381679389313   (borde exterior de la banda)
+ *   R - w/2 = 34.88549618320611  (borde interior de la banda)
+ * Icono en ángulo 90 (centro a la derecha) -> disco de knockout:
+ *   covered = [0 ± 4.894515096911905]
+ *   uncovered = [4.894515096911905, 355.1054849030881]
+ *   (350.2109698061762 grados = 213.6984122802948 mm de línea de centro)
+ */
+const E53_LINE_RADIUS_MM = 34.961832061068705;
+const E53_LINE_STROKE_MM = 0.15267175572519084;
+const E53_LINE_OUTER_MM = 35.0381679389313;
+const E53_LINE_INNER_MM = 34.88549618320611;
+const E53_KNOCKOUT_START_DEG = 4.894515096911905;
+const E53_KNOCKOUT_END_DEG = 355.1054849030881;
+
+test("E5.3 anillo completo: superficie cerrada y rellena, sin stroke-width", () => {
+  const report = reportOrThrow({
+    outerDiameter: 80,
+    innerDiameter: 60,
+    strategy: "band-thickness",
+    texts: [],
+    icons: [],
+    approved: [],
+    circularLines: "single",
+  });
+  const result = buildLabPhysicalSvg({ report, iconPaths: {} });
+  if (!result.ok) throw new Error(`export rejected: ${result.code}`);
+  const paths = svgPathTags(result.svg);
+  expect(paths).toHaveLength(1);
+  const tag = paths[0];
+  // Relleno negro y NINGÚN trazo: el grabador no necesita stroke-width.
+  expect(tag).toContain('fill="#000000"');
+  expect(tag).toContain('fill-rule="evenodd"');
+  expect(tag).not.toContain("stroke");
+  // Dos subpaths cerradas: anillo exterior + agujero interior.
+  const commands = parsePathCommands(pathData(tag));
+  expect(commands.filter((command) => command.op === "Z")).toHaveLength(2);
+  const radii = commands
+    .filter((command) => command.op === "A")
+    .map((command) => command.args[0]);
+  expect(radii).toHaveLength(4);
+  for (const radius of radii) expect(radius).toBeGreaterThan(0);
+  // Geometría equivalente al espesor original: R ± w/2.
+  expect(Math.max(...radii)).toBeCloseTo(E53_LINE_OUTER_MM, 10);
+  expect(Math.min(...radii)).toBeCloseTo(E53_LINE_INNER_MM, 10);
+  expect(Math.max(...radii) - Math.min(...radii)).toBeCloseTo(
+    E53_LINE_STROKE_MM,
+    10,
+  );
+  // Mismo centro que antes (el círculo iba en cx/cy = half = 40).
+  expect(tag).toContain('transform="translate(40 40)"');
+  expect(commands[0].op).toBe("M");
+  expect(commands[0].args[0]).toBeCloseTo(E53_LINE_OUTER_MM, 10);
+  expect(commands[0].args[1]).toBe(0);
+  // Curvatura y posición: cada arco cae sobre la circunferencia del centro.
+  const centers = walkArcCenters(commands);
+  expect(centers).toHaveLength(4);
+  for (const center of centers) {
+    expect(center.cx).toBeCloseTo(0, 9);
+    expect(center.cy).toBeCloseTo(0, 9);
+    expect(center.rx).toBeCloseTo(center.ry, 12);
+    // El radio pedido alcanza: el SVG no escala el radio (lambda <= 1).
+    expect(center.lambda).toBeLessThanOrEqual(1);
+  }
+  expect(centers.map((center) => center.rx).sort((a, b) => b - a)).toEqual([
+    expect.closeTo(E53_LINE_OUTER_MM, 10),
+    expect.closeTo(E53_LINE_OUTER_MM, 10),
+    expect.closeTo(E53_LINE_INNER_MM, 10),
+    expect.closeTo(E53_LINE_INNER_MM, 10),
+  ]);
+});
+
+test("E5.3 arco interrumpido: banda cerrada rellena con extremos a tope", () => {
+  const report = reportOrThrow({
+    outerDiameter: 80,
+    innerDiameter: 60,
+    strategy: "band-thickness",
+    texts: [],
+    icons: [sparkIcon("icon-e53", 90, 360)],
+    approved: [],
+    circularLines: "single",
+  });
+  const result = buildLabPhysicalSvg({
+    report,
+    iconPaths: {
+      "icon-e53": ["M16 2 20 12 30 16 20 20 16 30 12 20 2 16 12 12Z"],
+    },
+  });
+  if (!result.ok) throw new Error(`export rejected: ${result.code}`);
+  const linePaths = svgPathTags(result.svg).filter((tag) =>
+    tag.includes('fill="#000000"'),
+  );
+  expect(linePaths).toHaveLength(1);
+  const tag = linePaths[0];
+  expect(tag).not.toContain("stroke");
+  const commands = parsePathCommands(pathData(tag));
+  // M (borde exterior) - A (arco exterior) - L (extremo a tope) - A (interior) - Z
+  expect(commands.map((command) => command.op)).toEqual([
+    "M",
+    "A",
+    "L",
+    "A",
+    "Z",
+  ]);
+  const [, outerArc, butt, innerArc] = commands;
+  // Arcos: exterior R+w/2, interior R-w/2, mismo recorrido angular.
+  expect(outerArc.args[0]).toBeCloseTo(E53_LINE_OUTER_MM, 10);
+  expect(outerArc.args[1]).toBeCloseTo(E53_LINE_OUTER_MM, 10);
+  expect(innerArc.args[0]).toBeCloseTo(E53_LINE_INNER_MM, 10);
+  expect(innerArc.args[1]).toBeCloseTo(E53_LINE_INNER_MM, 10);
+  expect(outerArc.args[3]).toBe(1); // arco mayor (> 180 grados)
+  expect(outerArc.args[4]).toBe(1); // sentido de avance
+  expect(innerArc.args[4]).toBe(0); // el arco interior vuelve al inicio
+  // Extremos del arco: los mismos ángulos que el hueco del knockout.
+  expect(polarAngleDeg(commands[0].args[0], commands[0].args[1])).toBeCloseTo(
+    E53_KNOCKOUT_START_DEG,
+    8,
+  );
+  expect(
+    polarAngleDeg(outerArc.args[5], outerArc.args[6]),
+  ).toBeCloseTo(E53_KNOCKOUT_END_DEG, 8);
+  // Extremo a tope (butt): el segmento L es radial y mide el grosor.
+  expect(polarAngleDeg(butt.args[0], butt.args[1])).toBeCloseTo(
+    E53_KNOCKOUT_END_DEG,
+    8,
+  );
+  expect(polarRadiusMm(butt.args[0], butt.args[1])).toBeCloseTo(
+    E53_LINE_INNER_MM,
+    8,
+  );
+  expect(
+    polarRadiusMm(outerArc.args[5], outerArc.args[6]) -
+      polarRadiusMm(butt.args[0], butt.args[1]),
+  ).toBeCloseTo(E53_LINE_STROKE_MM, 8);
+  // El otro extremo (cierre Z) también es radial y a tope.
+  expect(polarAngleDeg(innerArc.args[5], innerArc.args[6])).toBeCloseTo(
+    E53_KNOCKOUT_START_DEG,
+    8,
+  );
+  expect(polarRadiusMm(innerArc.args[5], innerArc.args[6])).toBeCloseTo(
+    E53_LINE_INNER_MM,
+    8,
+  );
+  // Semántica de longitud: la línea de centro conserva su longitud.
+  const theta = ((E53_KNOCKOUT_END_DEG - E53_KNOCKOUT_START_DEG) * Math.PI) / 180;
+  expect(E53_LINE_RADIUS_MM * theta).toBeCloseTo(213.6984122802948, 8);
+  // El hueco del knockout sigue vacío: la superficie no cubre el disco.
+  expect(E53_KNOCKOUT_END_DEG - E53_KNOCKOUT_START_DEG).toBeCloseTo(
+    350.2109698061762,
+    8,
+  );
+  // Curvatura y posición: los dos arcos caen sobre la circunferencia del
+  // centro de la virola, con el radio pedido y sin escalado.
+  const centers = walkArcCenters(commands);
+  expect(centers).toHaveLength(2);
+  expect(centers[0].cx).toBeCloseTo(0, 9);
+  expect(centers[0].cy).toBeCloseTo(0, 9);
+  expect(centers[0].rx).toBeCloseTo(E53_LINE_OUTER_MM, 10);
+  expect(centers[0].ry).toBeCloseTo(E53_LINE_OUTER_MM, 10);
+  expect(centers[1].cx).toBeCloseTo(0, 9);
+  expect(centers[1].cy).toBeCloseTo(0, 9);
+  expect(centers[1].rx).toBeCloseTo(E53_LINE_INNER_MM, 10);
+  expect(centers[1].ry).toBeCloseTo(E53_LINE_INNER_MM, 10);
+  for (const center of centers) expect(center.lambda).toBeLessThanOrEqual(1);
+});
+
+test("E5.3 las referencias de virola conservan su trazo y no son grabables", () => {
+  const report = reportOrThrow({
+    outerDiameter: 80,
+    innerDiameter: 60,
+    strategy: "band-thickness",
+    texts: [],
+    icons: [],
+    approved: [],
+    circularLines: "single",
+  });
+  const result = buildLabPhysicalSvg({ report, iconPaths: {} });
+  if (!result.ok) throw new Error(`export rejected: ${result.code}`);
+  const ringAt = result.svg.indexOf('<g id="lab-ring-reference"');
+  const ringMarkup = result.svg.slice(ringAt, result.svg.indexOf("</g>", ringAt));
+  expect(ringMarkup).toContain('fill="none"');
+  expect(ringMarkup).toContain('stroke="#0000FF"');
+  expect(ringMarkup).toContain('stroke-width="1.5"');
+  expect(ringMarkup).toContain('<circle cx="40" cy="40" r="40"');
+  expect(ringMarkup).toContain('<circle cx="40" cy="40" r="30"');
+  // La referencia es HERMANA del grupo de grabado, nunca está dentro.
+  expect(result.svg.indexOf('id="lab-ring-reference"')).toBeLessThan(
+    result.svg.indexOf('id="lab-engraving"'),
+  );
+  // Nada de lo que se graba depende de stroke-width.
+  const engraving = engravingMarkup(result.svg);
+  expect(engraving).not.toContain("stroke");
+  expect(engraving).toContain('fill="#000000"');
+});
+
+test("E5.3 íconos y contornos HarfBuzz intactos junto a la línea rellena", () => {
+  const element: TextElement = {
+    id: "text-e53",
+    text: "Mate",
+    fontFamily: "Poppins",
+    angle: 0,
+    radius: 374,
+    inverted: false,
+  };
+  const report = reportOrThrow({
+    outerDiameter: 80,
+    innerDiameter: 60,
+    strategy: "band-thickness",
+    texts: [
+      {
+        element,
+        measurement: {
+          lengthMm: 20,
+          provenance: "browser-getComputedTextLength",
+        },
+      },
+    ],
+    icons: [sparkIcon("icon-e53", 90, 360)],
+    approved: [],
+    circularLines: "single",
+  });
+  const result = buildLabPhysicalSvg({
+    report,
+    iconPaths: {
+      "icon-e53": ["M16 2 20 12 30 16 20 20 16 30 12 20 2 16 12 12Z"],
+    },
+    textOutlines: {
+      "text-e53": {
+        paths: ["M0 0H10V10H0Z"],
+        shaperVersion: "15.0.0",
+        advanceMm: 20,
+      },
+    },
+  });
+  if (!result.ok) throw new Error(`export rejected: ${result.code}`);
+  // El ícono conserva su propio modelo de trazo (no se convierte en relleno).
+  expect(result.svg).toContain(
+    'fill="none" stroke="#171717" stroke-width="1.7"',
+  );
+  expect(result.svg).toContain("scale(1.4) translate(-16 -16)");
+  expect(result.svg).toContain("M16 2 20 12 30 16 20 20 16 30 12 20 2 16 12 12Z");
+  // Los contornos del texto siguen siendo contornos rellenos intactos.
+  expect(result.svg).toContain('<g data-text-id="text-e53" fill="#000000"');
+  expect(result.svg).toContain('d="M0 0H10V10H0Z"');
+  // La línea decorativa es una superficie rellena, sin trazo.
+  const linePaths = svgPathTags(result.svg).filter((tag) =>
+    tag.includes('fill="#000000"'),
+  );
+  expect(linePaths.length).toBeGreaterThan(0);
+  for (const tag of linePaths) {
+    expect(tag).not.toContain("stroke");
+    expect(pathData(tag).endsWith("Z")).toBe(true);
+  }
 });
